@@ -1,0 +1,7 @@
+tws:
+  host: "host.docker.internal"
+  port: 7496
+  client_id: 1
+
+output:
+  file: "positions.csv"
