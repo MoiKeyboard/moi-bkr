@@ -2,7 +2,7 @@ import backtrader as bt
 import pandas as pd
 import os
 from backtrader.feeds import PandasData
-from .moving_average_strategy import MovingAverageStrategy  # Import the strategy
+from strategy.moving_average_strategy import MovingAverageStrategy  # Import the strategy
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
