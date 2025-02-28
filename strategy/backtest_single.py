@@ -2,7 +2,8 @@ import backtrader as bt
 import pandas as pd
 import os
 from backtrader.feeds import PandasData
-from strategy.moving_average_strategy import MovingAverageStrategy  # Import the strategy
+from strategy.strategies import MovingAverageStrategy  # Import the strategy
+from strategy.strategies import MovingAverageStrategyNew  # Import the strategy
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +30,8 @@ data_feed = PandasData(dataname=data)
 cerebro = bt.Cerebro()
 
 # Add the Moving Average strategy
-cerebro.addstrategy(MovingAverageStrategy)
+# cerebro.addstrategy(MovingAverageStrategy)
+cerebro.addstrategy(MovingAverageStrategyNew)
 
 # Add the data feed
 cerebro.adddata(data_feed)
@@ -69,4 +71,4 @@ print(f"Average Loss: {trades['lost']['pnl']['average']}")
 print(f"Profit Factor: {trades['pnl']['net']['total']} / {abs(trades['pnl']['net']['total'] - trades['won']['pnl']['total'])}")
 
 # Plot the results
-cerebro.plot()
+# cerebro.plot()
