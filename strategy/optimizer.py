@@ -1,6 +1,6 @@
 import os
 import backtrader as bt
-from strategy.strategies import MovingAverageStrategyNew
+from strategy.strategies import ATRMovingAverageStrategy
 
 class MovingAverageOptimizer:
     """
@@ -28,7 +28,7 @@ class MovingAverageOptimizer:
         """
         cerebro = bt.Cerebro()
         cerebro.addstrategy(
-            MovingAverageStrategyNew,
+            ATRMovingAverageStrategy,
             short_period=short_period,
             long_period=long_period,
             stop_loss_multiplier=stop_loss_multiplier,

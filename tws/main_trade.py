@@ -1,7 +1,7 @@
 import time
 import pandas as pd
 from ib_insync import *
-from strategy.moving_average_strategy import MovingAverageStrategy
+from strategy.strategies import ATRMovingAverageStrategy
 from tws.tws_client import TWSClient
 
 class TradingBot:

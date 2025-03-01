@@ -63,7 +63,7 @@ class MovingAverageStrategy(bt.Strategy):
                 self.buy_price = self.data.close[0]  # Store the buy price
                 print(f"Entered trade at {self.buy_price}")
 
-class MovingAverageStrategyNew(bt.Strategy):
+class ATRMovingAverageStrategy(bt.Strategy):
     """
     A moving average crossover strategy with ATR-based dynamic stop-loss and take-profit levels.
 

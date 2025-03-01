@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from backtrader.feeds import PandasData
 from strategy.strategies import MovingAverageStrategy  # Import the strategy
-from strategy.strategies import MovingAverageStrategyNew  # Import the strategy
+from strategy.strategies import ATRMovingAverageStrategy  # Import the strategy
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +31,7 @@ cerebro = bt.Cerebro()
 
 # Add the Moving Average strategy
 # cerebro.addstrategy(MovingAverageStrategy)
-cerebro.addstrategy(MovingAverageStrategyNew)
+cerebro.addstrategy(ATRMovingAverageStrategy)
 
 # Add the data feed
 cerebro.adddata(data_feed)
