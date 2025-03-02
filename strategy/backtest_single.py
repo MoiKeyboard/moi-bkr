@@ -4,6 +4,8 @@ import os
 from backtrader.feeds import PandasData
 from strategy.strategies import MovingAverageStrategy  # Import the strategy
 from strategy.strategies import ATRMovingAverageStrategy  # Import the strategy
+from strategy.strategies import VWAPStrategy
+from strategy.strategies import ATRVWAPStrategy
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +33,9 @@ cerebro = bt.Cerebro()
 
 # Add the Moving Average strategy
 # cerebro.addstrategy(MovingAverageStrategy)
-cerebro.addstrategy(ATRMovingAverageStrategy)
+# cerebro.addstrategy(ATRMovingAverageStrategy)
+# cerebro.addstrategy(VWAPStrategy)
+cerebro.addstrategy(ATRVWAPStrategy)
 
 # Add the data feed
 cerebro.adddata(data_feed)
