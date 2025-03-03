@@ -5,6 +5,7 @@ from ib_insync import *
 from tws.tws_client import TWSClient
 import pandas as pd
 
+
 class TradingBot:
     """
     A trading bot that fetches market data from IBKR and applies a chosen strategy to generate buy/sell signals.
@@ -17,7 +18,14 @@ class TradingBot:
         paper_trading (bool): Whether to use paper trading mode (default: True).
     """
 
-    def __init__(self, symbol, strategy_class, strategy_kwargs=None, quantity=10, paper_trading=True):
+    def __init__(
+        self,
+        symbol,
+        strategy_class,
+        strategy_kwargs=None,
+        quantity=10,
+        paper_trading=True,
+    ):
         """Initializes the bot with stock symbol, strategy, and trading parameters."""
         self.symbol = symbol
         self.quantity = quantity
@@ -38,24 +46,24 @@ class TradingBot:
         self.tws.get_account()
 
         # Define contract
-        self.contract = Stock(self.symbol, 'SMART', 'USD')
+        self.contract = Stock(self.symbol, "SMART", "USD")
         self.tws.ib.qualifyContracts(self.contract)
 
     def get_live_data(self):
         """Fetches latest market data from TWS."""
         bars = self.tws.ib.reqHistoricalData(
             self.contract,
-            endDateTime='',
-            durationStr='1 D',
-            barSizeSetting='5 mins',
-            whatToShow='MIDPOINT',
+            endDateTime="",
+            durationStr="1 D",
+            barSizeSetting="5 mins",
+            whatToShow="MIDPOINT",
             useRTH=True,
-            formatDate=1
+            formatDate=1,
         )
         if bars:
             df = util.df(bars)
-            df['Date'] = pd.to_datetime(df['date'])
-            return df[['Date', 'close']]
+            df["Date"] = pd.to_datetime(df["date"])
+            return df[["Date", "close"]]
         return None
 
     def trade(self):
@@ -75,22 +83,25 @@ class TradingBot:
 
         if signal:
             positions = self.tws.get_positions()
-            holding = any(pos["symbol"] == self.symbol and pos["quantity"] > 0 for pos in positions)
+            holding = any(
+                pos["symbol"] == self.symbol and pos["quantity"] > 0
+                for pos in positions
+            )
 
             if signal == "BUY" and not holding:
                 print(f"BUY signal detected for {self.symbol}! Placing order...")
-                order = MarketOrder('BUY', self.quantity)
+                order = MarketOrder("BUY", self.quantity)
                 self.tws.ib.placeOrder(self.contract, order)
 
             elif signal == "SELL" and holding:
                 print(f"SELL signal detected for {self.symbol}! Closing position...")
-                order = MarketOrder('SELL', self.quantity)
+                order = MarketOrder("SELL", self.quantity)
                 self.tws.ib.placeOrder(self.contract, order)
 
     def run(self, interval=300):
         """
         Runs the trading bot continuously at the specified interval (in seconds).
-        
+
         This keeps the bot running and ensures the IB event loop stays active.
         """
         print("Starting trading bot...")

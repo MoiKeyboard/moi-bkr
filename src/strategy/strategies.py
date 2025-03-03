@@ -1,6 +1,7 @@
 import pandas as pd
 import backtrader as bt
-from strategy.indicators import VWAP  
+from strategy.indicators import VWAP
+
 
 class BaseStrategy:
     """
@@ -46,8 +47,12 @@ class MovingAverageStrategy(bt.Strategy, BaseStrategy):
         self.stop_loss_pct = kwargs.get("stop_loss_pct", 0.95)  # 5% stop-loss
         self.take_profit_pct = kwargs.get("take_profit_pct", 1.10)  # 10% take-profit
 
-        self.short_ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.short_period)
-        self.long_ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.long_period)
+        self.short_ma = bt.indicators.SimpleMovingAverage(
+            self.data.close, period=self.short_period
+        )
+        self.long_ma = bt.indicators.SimpleMovingAverage(
+            self.data.close, period=self.long_period
+        )
 
         self.buy_price = None
 
@@ -101,8 +106,12 @@ class ATRMovingAverageStrategy(bt.Strategy, BaseStrategy):
         self.stop_loss_multiplier = kwargs.get("stop_loss_multiplier", 2)
         self.take_profit_multiplier = kwargs.get("take_profit_multiplier", 6)
 
-        self.short_ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.short_period)
-        self.long_ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.long_period)
+        self.short_ma = bt.indicators.SimpleMovingAverage(
+            self.data.close, period=self.short_period
+        )
+        self.long_ma = bt.indicators.SimpleMovingAverage(
+            self.data.close, period=self.long_period
+        )
 
         self.atr = bt.indicators.AverageTrueRange(self.data, period=14)
 
@@ -120,10 +129,14 @@ class ATRMovingAverageStrategy(bt.Strategy, BaseStrategy):
                 self.buy(size=position_size)
                 self.entry_price = self.data.close[0]
                 print(f"Entered trade at {self.entry_price} with size {position_size}")
-        
+
         else:
-            stop_loss_price = self.entry_price - (self.atr[0] * self.stop_loss_multiplier)
-            take_profit_price = self.entry_price + (self.atr[0] * self.take_profit_multiplier)
+            stop_loss_price = self.entry_price - (
+                self.atr[0] * self.stop_loss_multiplier
+            )
+            take_profit_price = self.entry_price + (
+                self.atr[0] * self.take_profit_multiplier
+            )
 
             if self.data.close[0] <= stop_loss_price:
                 self.close()
@@ -136,13 +149,14 @@ class ATRMovingAverageStrategy(bt.Strategy, BaseStrategy):
         """Placeholder for non-Backtrader implementations."""
         return None, df
 
+
 class VWAPStrategy(BaseStrategy, bt.Strategy):
     """
     Volume-Weighted Average Price (VWAP) trading strategy.
 
     - Generates signals based on price relative to VWAP.
     - Works with both Backtrader (for backtesting) and DataFrames (for external execution).
-    
+
     Optional kwargs:
         vwap_period (int): Number of periods for VWAP calculation (default: 20).
     """
@@ -183,7 +197,9 @@ class VWAPStrategy(BaseStrategy, bt.Strategy):
             tuple: (signal: str, df with VWAP)
         """
         if "volume" not in df.columns:
-            raise ValueError("Market data must include a 'volume' column for VWAP calculation.")
+            raise ValueError(
+                "Market data must include a 'volume' column for VWAP calculation."
+            )
 
         df["VWAP"] = self.calculate_vwap(df)
 
@@ -204,10 +220,11 @@ class VWAPStrategy(BaseStrategy, bt.Strategy):
         - If price is above VWAP, enter a long position.
         - If price is below VWAP, close position.
         """
-        vwap = self.calculate_vwap(pd.DataFrame({
-            "close": self.data.close.array,
-            "volume": self.data.volume.array
-        })).iloc[-1]
+        vwap = self.calculate_vwap(
+            pd.DataFrame(
+                {"close": self.data.close.array, "volume": self.data.volume.array}
+            )
+        ).iloc[-1]
 
         if self.data.close[0] > vwap and not self.position:
             self.buy()
@@ -215,6 +232,7 @@ class VWAPStrategy(BaseStrategy, bt.Strategy):
         elif self.data.close[0] < vwap and self.position:
             self.close()
             print(f"SELL signal at {self.data.close[0]}")
+
 
 class ATRVWAPStrategy(bt.Strategy):
     """
@@ -244,8 +262,12 @@ class ATRVWAPStrategy(bt.Strategy):
         self.vwap = VWAP(self.data)
 
         # ATR & Moving Averages
-        self.short_ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.short_period)
-        self.long_ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.long_period)
+        self.short_ma = bt.indicators.SimpleMovingAverage(
+            self.data.close, period=self.short_period
+        )
+        self.long_ma = bt.indicators.SimpleMovingAverage(
+            self.data.close, period=self.long_period
+        )
         self.atr = bt.indicators.AverageTrueRange(self.data, period=14)
 
         self.entry_price = None
@@ -255,11 +277,11 @@ class ATRVWAPStrategy(bt.Strategy):
         Execute trading logic on each new bar.
         """
         if not self.position:  # If no open position
-            if self.short_ma[0] > self.long_ma[0] and self.data.close[0] > self.vwap[0]:  
+            if self.short_ma[0] > self.long_ma[0] and self.data.close[0] > self.vwap[0]:
                 # Confirm trade with VWAP trend
                 atr_value = self.atr[0]
                 capital = self.broker.get_cash()
-                risk_per_trade = 0.02  
+                risk_per_trade = 0.02
                 position_size = (capital * risk_per_trade) / atr_value
 
                 self.buy(size=position_size)
@@ -267,11 +289,18 @@ class ATRVWAPStrategy(bt.Strategy):
                 print(f"Entered trade at {self.entry_price} with size {position_size}")
 
         else:  # Already in a trade
-            stop_loss_price = self.entry_price - (self.atr[0] * self.stop_loss_multiplier)
-            take_profit_price = self.entry_price + (self.atr[0] * self.take_profit_multiplier)
+            stop_loss_price = self.entry_price - (
+                self.atr[0] * self.stop_loss_multiplier
+            )
+            take_profit_price = self.entry_price + (
+                self.atr[0] * self.take_profit_multiplier
+            )
 
             # Exit if stop-loss, take-profit, or VWAP trend reversal
-            if self.data.close[0] <= stop_loss_price or self.data.close[0] < self.vwap[0]:
+            if (
+                self.data.close[0] <= stop_loss_price
+                or self.data.close[0] < self.vwap[0]
+            ):
                 self.close()
                 print(f"Stop-loss/VWAP exit at {self.data.close[0]}")
             elif self.data.close[0] >= take_profit_price:

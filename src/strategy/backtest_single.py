@@ -72,7 +72,9 @@ print(f"Losing Trades: {trades['lost']['total']}")
 print(f"Win Rate: {trades['won']['total'] / trades['total']['total'] * 100:.2f}%")
 print(f"Average Win: {trades['won']['pnl']['average']}")
 print(f"Average Loss: {trades['lost']['pnl']['average']}")
-print(f"Profit Factor: {trades['pnl']['net']['total']} / {abs(trades['pnl']['net']['total'] - trades['won']['pnl']['total'])}")
+print(
+    f"Profit Factor: {trades['pnl']['net']['total']} / {abs(trades['pnl']['net']['total'] - trades['won']['pnl']['total'])}"
+)
 
 # Plot the results
 # cerebro.plot()

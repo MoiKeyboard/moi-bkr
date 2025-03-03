@@ -2,6 +2,7 @@ import os
 import backtrader as bt
 from strategy.strategies import ATRMovingAverageStrategy
 
+
 class MovingAverageOptimizer:
     """
     A class to optimize the ATR-based moving average crossover strategy.
@@ -13,7 +14,13 @@ class MovingAverageOptimizer:
     def __init__(self, data_file):
         self.data_file = data_file
 
-    def run_backtest(self, short_period, long_period, stop_loss_multiplier=2, take_profit_multiplier=6):
+    def run_backtest(
+        self,
+        short_period,
+        long_period,
+        stop_loss_multiplier=2,
+        take_profit_multiplier=6,
+    ):
         """
         Runs a backtest with the given moving average periods and risk settings.
 
@@ -32,7 +39,7 @@ class MovingAverageOptimizer:
             short_period=short_period,
             long_period=long_period,
             stop_loss_multiplier=stop_loss_multiplier,
-            take_profit_multiplier=take_profit_multiplier
+            take_profit_multiplier=take_profit_multiplier,
         )
 
         data = bt.feeds.GenericCSVData(
@@ -41,7 +48,7 @@ class MovingAverageOptimizer:
             timeframe=bt.TimeFrame.Days,
             compression=1,
             openinterest=-1,
-            headers=True
+            headers=True,
         )
 
         cerebro.adddata(data)
@@ -59,7 +66,7 @@ class MovingAverageOptimizer:
         return {
             "short_period": short_period,
             "long_period": long_period,
-            "sharpe_ratio": sharpe_ratio
+            "sharpe_ratio": sharpe_ratio,
         }
 
     def optimize_ma_periods(self, short_ma_list, long_ma_list):
