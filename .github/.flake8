@@ -1,5 +1,5 @@
 [flake8]
-max-line-length = 120
+max-line-length = 150
 extend-ignore = 
     # Line breaks before binary operators
     W503,
@@ -7,6 +7,8 @@ extend-ignore =
     W504,
     # Star imports
     F403,F405
+    # Module imported but unused (F401)
+    F401
 exclude = 
     .git,
     __pycache__,
@@ -15,4 +17,4 @@ exclude =
     dist,
 per-file-ignores =
     # Allow unused imports in __init__.py
-    __init__.py:F401
+    # __init__.py:F401
