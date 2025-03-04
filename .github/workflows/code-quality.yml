@@ -57,7 +57,7 @@ jobs:
       - name: Check code quality with Flake8
         run: |
           echo "Checking code quality..."
-          flake8 src/ --count --show-source --statistics
+          flake8 src/ --count --show-source --statistics --config .github/.flake8
           
       - name: Report Status
         if: always()
