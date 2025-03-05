@@ -1,5 +1,5 @@
-from tws.trading_bot import TradingBot
-from strategy.strategies import ATRMovingAverageStrategy, MovingAverageStrategy
+from src.tws.trading_bot import TradingBot
+from src.strategy.strategies import ATRMovingAverageStrategy, MovingAverageStrategy
 
 bot = TradingBot(
     symbol="AAPL",
