@@ -7,7 +7,7 @@ from src.strategy.strategies import (
     ATRMovingAverageStrategy,
     VWAPStrategy,
     ATRVWAPStrategy,
-    SmartTrendStrategy
+    SmartTrendStrategy,
 )
 
 # Get the directory of the current script
@@ -55,9 +55,9 @@ cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 cerebro.addanalyzer(bt.analyzers.TimeReturn, _name="timereturn")
 
 # Run the backtest
-print('\nStarting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+print("\nStarting Portfolio Value: %.2f" % cerebro.broker.getvalue())
 results = cerebro.run()
-print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+print("Final Portfolio Value: %.2f" % cerebro.broker.getvalue())
 
 # Extract and print performance metrics
 strat = results[0]
@@ -67,24 +67,24 @@ returns = strat.analyzers.returns.get_analysis()
 trades = strat.analyzers.trades.get_analysis()
 
 # Print performance summary
-print('\nPerformance Metrics:')
+print("\nPerformance Metrics:")
 print(f"Sharpe Ratio: {sharpe_ratio['sharperatio']:.2f}")
 print(f"Max Drawdown: {drawdown['max']['drawdown']:.2%}")
 print(f"Total Return: {returns['rtot']:.2%}")
 
 # Trade Analysis
-print('\nTrade Analysis:')
+print("\nTrade Analysis:")
 print(f"Total Trades: {trades['total']['total']}")
 print(f"Winning Trades: {trades['won']['total']}")
 print(f"Losing Trades: {trades['lost']['total']}")
-win_rate = trades['won']['total'] / trades['total']['total'] * 100
+win_rate = trades["won"]["total"] / trades["total"]["total"] * 100
 print(f"Win Rate: {win_rate:.2f}%")
 print(f"Average Win: {trades['won']['pnl']['average']:.2f}")
 print(f"Average Loss: {trades['lost']['pnl']['average']:.2f}")
 
 # Calculate profit factor
-net_profit = trades['pnl']['net']['total']
-gross_loss = abs(trades['pnl']['net']['total'] - trades['won']['pnl']['total'])
+net_profit = trades["pnl"]["net"]["total"]
+gross_loss = abs(trades["pnl"]["net"]["total"] - trades["won"]["pnl"]["total"])
 print(f"Profit Factor: {net_profit:.2f} / {gross_loss:.2f}")
 
 # Plot the results
