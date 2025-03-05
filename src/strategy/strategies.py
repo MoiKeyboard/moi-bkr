@@ -309,7 +309,7 @@ class ATRVWAPStrategy(bt.Strategy):
                 print(f"Take-profit exit at {self.data.close[0]}")
 
 
-class SmartTrendStrategy(bt.Strategy, BaseStrategy):
+class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
     """
     An enhanced version of ATRMovingAverageStrategy with additional filters.
     
@@ -317,7 +317,6 @@ class SmartTrendStrategy(bt.Strategy, BaseStrategy):
     - Uses EMA crossover for primary trend identification
     - MACD for trend confirmation
     - ATR for volatility-based position sizing and stops
-    - Conservative entry filters to reduce false signals
     
     Entry conditions (need 2 out of 3):
     - EMA crossover (primary signal)
@@ -325,60 +324,47 @@ class SmartTrendStrategy(bt.Strategy, BaseStrategy):
     - RSI in favorable zone (>40 for longs, <60 for shorts)
     
     Exit conditions (any):
-    - Stop-loss hit (1.5 * ATR)
-    - Take-profit hit (3.0 * ATR)
-    - Trend reversal (EMA crossover in opposite direction)
+    - Trailing stop-loss hit (1.5 * ATR)
+    - Take-profit hit (2.0 * ATR)
+    - Trend reversal with confirmation
     
     Risk Management:
     - Position sizing based on ATR and fixed risk per trade
     - Trailing stop-loss for winning trades
     - Maximum position size limit
-    
-    Optional kwargs:
-        fast_ema (int): Fast EMA period (default: 20)
-        slow_ema (int): Slow EMA period (default: 50)
-        signal_ema (int): MACD signal period (default: 9)
-        rsi_period (int): RSI period (default: 14)
-        atr_period (int): ATR period (default: 14)
-        risk_per_trade (float): Risk per trade as % of portfolio (default: 0.01)
-        atr_stop_multiplier (float): ATR multiplier for stops (default: 1.5)
-        atr_target_multiplier (float): ATR multiplier for targets (default: 3.0)
     """
-
+    
     def __init__(self, **kwargs):
         """Initialize indicators and strategy parameters."""
         # Strategy parameters
-        self.fast_ema_period = kwargs.get("fast_ema", 20)
-        self.slow_ema_period = kwargs.get("slow_ema", 50)
+        self.fast_ema_period = kwargs.get("fast_ema", 5)  # Even faster EMA
+        self.slow_ema_period = kwargs.get("slow_ema", 15)  # Shorter slow EMA
         self.signal_ema_period = kwargs.get("signal_ema", 9)
         self.rsi_period = kwargs.get("rsi_period", 14)
         self.atr_period = kwargs.get("atr_period", 14)
-        self.risk_per_trade = kwargs.get("risk_per_trade", 0.01)  # 1% risk per trade
+        self.risk_per_trade = kwargs.get("risk_per_trade", 0.01)
         self.atr_stop_multiplier = kwargs.get("atr_stop_multiplier", 1.5)
-        self.atr_target_multiplier = kwargs.get("atr_target_multiplier", 3.0)
+        self.atr_target_multiplier = kwargs.get("atr_target_multiplier", 2.0)
+        self.max_holding_days = kwargs.get("max_holding_days", 15)
         
-        # Trend indicators
+        # Initialize indicators
         self.fast_ema = bt.indicators.EMA(period=self.fast_ema_period)
         self.slow_ema = bt.indicators.EMA(period=self.slow_ema_period)
-        
-        # Momentum indicators
         self.macd = bt.indicators.MACD(
             period_me1=self.fast_ema_period,
             period_me2=self.slow_ema_period,
             period_signal=self.signal_ema_period
         )
         self.rsi = bt.indicators.RSI(period=self.rsi_period)
-        
-        # Volatility indicator
         self.atr = bt.indicators.ATR(period=self.atr_period)
         
-        # Track our position and orders
+        # Track position info
         self.order = None
-        self.stop_order = None
-        self.target_order = None
         self.entry_price = None
         self.position_size = None
         self.trailing_stop = None
+        self.entry_bar = 0
+        self.consecutive_losses = 0
 
     def calculate_position_size(self, stop_distance):
         """Calculate position size based on risk management rules."""
@@ -396,83 +382,100 @@ class SmartTrendStrategy(bt.Strategy, BaseStrategy):
         return int(min(position_size, max_position_size))
 
     def should_long(self):
-        """Check if conditions are met for a long entry."""
-        # Primary trend
+        """Simplified long entry conditions."""
+        # Basic trend check
         trend_up = self.fast_ema[0] > self.slow_ema[0]
         
-        # Confirmations (need 2 out of 3)
+        # Count confirmations
         confirmations = 0
         
-        # 1. Trend strength
-        if self.fast_ema[0] > self.fast_ema[-1]:
+        # 1. Price momentum
+        if self.data.close[0] > self.data.close[-1]:
             confirmations += 1
             
-        # 2. MACD confirmation
+        # 2. MACD
         if self.macd.macd[0] > self.macd.signal[0]:
             confirmations += 1
             
-        # 3. RSI not overbought and in uptrend zone
-        if 40 < self.rsi[0] < 70:
+        # 3. RSI
+        if 30 < self.rsi[0] < 70:  # Wider RSI range
             confirmations += 1
         
-        return trend_up and confirmations >= 2
+        # Need trend and at least one confirmation
+        return trend_up and confirmations >= 1
 
     def should_short(self):
-        """Check if conditions are met for a short entry."""
-        # Primary trend
+        """Simplified short entry conditions."""
+        # Basic trend check
         trend_down = self.fast_ema[0] < self.slow_ema[0]
         
-        # Confirmations (need 2 out of 3)
+        # Count confirmations
         confirmations = 0
         
-        # 1. Trend strength
-        if self.fast_ema[0] < self.fast_ema[-1]:
+        # 1. Price momentum
+        if self.data.close[0] < self.data.close[-1]:
             confirmations += 1
             
-        # 2. MACD confirmation
+        # 2. MACD
         if self.macd.macd[0] < self.macd.signal[0]:
             confirmations += 1
             
-        # 3. RSI not oversold and in downtrend zone
-        if 30 < self.rsi[0] < 60:
+        # 3. RSI
+        if 30 < self.rsi[0] < 70:  # Wider RSI range
             confirmations += 1
         
-        return trend_down and confirmations >= 2
+        # Need trend and at least one confirmation
+        return trend_down and confirmations >= 1
 
     def next(self):
         """Execute trading logic on each bar."""
         if self.order:
             return
             
+        # Print indicator values for debugging
+        if len(self) % 5 == 0:  # Print every 5 bars
+            print(f"\nBar {len(self)} - Close: {self.data.close[0]:.2f}")
+            print(f"EMAs - Fast: {self.fast_ema[0]:.2f}, Slow: {self.slow_ema[0]:.2f}")
+            print(f"MACD: {self.macd.macd[0]:.2f}, Signal: {self.macd.signal[0]:.2f}")
+            print(f"RSI: {self.rsi[0]:.2f}")
+            
+        # Check time-based exit for existing positions
         if self.position:
+            bars_held = len(self) - self.entry_bar
+            if bars_held > self.max_holding_days:
+                self.close()
+                print(f"Time-based exit at {self.data.close[0]:.2f}")
+                return
+                
             # Update trailing stop if in profit
             if self.position.size > 0:  # Long position
                 if self.data.close[0] > self.entry_price:
-                    new_stop = self.data.close[0] - self.atr[0] * self.atr_stop_multiplier
-                    if new_stop > self.trailing_stop:
-                        self.trailing_stop = new_stop
-                        
+                    new_stop = max(
+                        self.data.close[0] - self.atr[0] * self.atr_stop_multiplier,
+                        self.trailing_stop
+                    )
+                    self.trailing_stop = new_stop
+                    
                 if self.data.close[0] < self.trailing_stop:
                     self.close()
-                    print(f"Trailing stop hit at {self.data.close[0]}")
+                    print(f"Long trailing stop hit at {self.data.close[0]:.2f}")
                     
             else:  # Short position
                 if self.data.close[0] < self.entry_price:
-                    new_stop = self.data.close[0] + self.atr[0] * self.atr_stop_multiplier
-                    if new_stop < self.trailing_stop:
-                        self.trailing_stop = new_stop
-                        
+                    new_stop = min(
+                        self.data.close[0] + self.atr[0] * self.atr_stop_multiplier,
+                        self.trailing_stop
+                    )
+                    self.trailing_stop = new_stop
+                    
                 if self.data.close[0] > self.trailing_stop:
                     self.close()
-                    print(f"Trailing stop hit at {self.data.close[0]}")
+                    print(f"Short trailing stop hit at {self.data.close[0]:.2f}")
             return
             
-        atr_value = self.atr[0]
-        
+        # Entry logic
         if self.should_long():
-            stop_price = self.data.close[0] - atr_value * self.atr_stop_multiplier
-            target_price = self.data.close[0] + atr_value * self.atr_target_multiplier
-            
+            stop_price = self.data.close[0] - self.atr[0] * self.atr_stop_multiplier
             self.position_size = self.calculate_position_size(
                 self.data.close[0] - stop_price
             )
@@ -481,12 +484,11 @@ class SmartTrendStrategy(bt.Strategy, BaseStrategy):
                 self.order = self.buy(size=self.position_size)
                 self.entry_price = self.data.close[0]
                 self.trailing_stop = stop_price
-                print(f"LONG Entry at {self.entry_price:.2f}, Size: {self.position_size}, Stop: {stop_price:.2f}")
+                self.entry_bar = len(self)
+                print(f"LONG Entry at {self.entry_price:.2f}, Size: {self.position_size}")
                 
         elif self.should_short():
-            stop_price = self.data.close[0] + atr_value * self.atr_stop_multiplier
-            target_price = self.data.close[0] - atr_value * self.atr_target_multiplier
-            
+            stop_price = self.data.close[0] + self.atr[0] * self.atr_stop_multiplier
             self.position_size = self.calculate_position_size(
                 stop_price - self.data.close[0]
             )
@@ -495,25 +497,13 @@ class SmartTrendStrategy(bt.Strategy, BaseStrategy):
                 self.order = self.sell(size=self.position_size)
                 self.entry_price = self.data.close[0]
                 self.trailing_stop = stop_price
-                print(f"SHORT Entry at {self.entry_price:.2f}, Size: {self.position_size}, Stop: {stop_price:.2f}")
+                self.entry_bar = len(self)
+                print(f"SHORT Entry at {self.entry_price:.2f}, Size: {self.position_size}")
 
-    def notify_order(self, order):
-        """Handle order status updates."""
-        if order.status in [order.Submitted, order.Accepted]:
-            return
-            
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                self.log(f'BUY EXECUTED, {order.executed.price:.2f}')
-            elif order.issell():
-                self.log(f'SELL EXECUTED, {order.executed.price:.2f}')
-                
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log('Order Canceled/Margin/Rejected')
-            
-        self.order = None
-        
-    def log(self, txt, dt=None):
-        """Logging function."""
-        dt = dt or self.datas[0].datetime.date(0)
-        print(f'{dt.isoformat()} {txt}')
+    def notify_trade(self, trade):
+        """Track consecutive losses."""
+        if trade.status == trade.Closed:
+            if trade.pnl < 0:
+                self.consecutive_losses += 1
+            else:
+                self.consecutive_losses = 0

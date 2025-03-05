@@ -7,7 +7,7 @@ from src.strategy.strategies import (
     ATRMovingAverageStrategy,
     VWAPStrategy,
     ATRVWAPStrategy,
-    SmartTrendStrategy
+    EnhancedATRStrategy
 )
 
 # Get the directory of the current script
@@ -36,10 +36,10 @@ cerebro = bt.Cerebro()
 
 # Choose which strategy to use (uncomment one)
 # cerebro.addstrategy(MovingAverageStrategy)
-# cerebro.addstrategy(ATRMovingAverageStrategy)
+cerebro.addstrategy(ATRMovingAverageStrategy)
 # cerebro.addstrategy(VWAPStrategy)
 # cerebro.addstrategy(ATRVWAPStrategy)
-cerebro.addstrategy(SmartTrendStrategy)  # Using the new strategy
+# cerebro.addstrategy(EnhancedATRStrategy)
 
 # Add the data feed
 cerebro.adddata(data_feed)
@@ -75,17 +75,32 @@ print(f"Total Return: {returns['rtot']:.2%}")
 # Trade Analysis
 print('\nTrade Analysis:')
 print(f"Total Trades: {trades['total']['total']}")
-print(f"Winning Trades: {trades['won']['total']}")
-print(f"Losing Trades: {trades['lost']['total']}")
-win_rate = trades['won']['total'] / trades['total']['total'] * 100
-print(f"Win Rate: {win_rate:.2f}%")
-print(f"Average Win: {trades['won']['pnl']['average']:.2f}")
-print(f"Average Loss: {trades['lost']['pnl']['average']:.2f}")
+
+# Handle winning trades
+winning_trades = trades.get('won', {}).get('total', 0)
+print(f"Winning Trades: {winning_trades}")
+
+# Handle losing trades
+losing_trades = trades.get('lost', {}).get('total', 0)
+print(f"Losing Trades: {losing_trades}")
+
+# Calculate win rate if there are any trades
+if trades['total']['total'] > 0:
+    win_rate = (winning_trades / trades['total']['total']) * 100
+    print(f"Win Rate: {win_rate:.2f}%")
+
+# Print average wins/losses if they exist
+if winning_trades > 0:
+    print(f"Average Win: {trades['won']['pnl']['average']:.2f}")
+if losing_trades > 0:
+    print(f"Average Loss: {trades['lost']['pnl']['average']:.2f}")
 
 # Calculate profit factor
-net_profit = trades['pnl']['net']['total']
-gross_loss = abs(trades['pnl']['net']['total'] - trades['won']['pnl']['total'])
-print(f"Profit Factor: {net_profit:.2f} / {gross_loss:.2f}")
+if trades['total']['total'] > 0:
+    net_profit = trades.get('pnl', {}).get('net', {}).get('total', 0)
+    gross_profit = trades.get('won', {}).get('pnl', {}).get('total', 0)
+    gross_loss = abs(net_profit - gross_profit) if gross_profit else abs(net_profit)
+    print(f"Profit Factor: {net_profit:.2f} / {gross_loss:.2f}")
 
 # Plot the results
 # cerebro.plot(style='candlestick')
