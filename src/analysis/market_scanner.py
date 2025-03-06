@@ -5,6 +5,7 @@ from .data_providers.yahoo_provider import YahooFinanceProvider
 from .data_providers.ib_provider import IBDataProvider
 import os
 
+
 class MarketScanner:
     """Scanner to identify trending stocks using configured data provider."""
 
@@ -100,16 +101,16 @@ class MarketScanner:
     def save_market_data(self, output_dir: str = "data") -> None:
         """
         Save market data for all tickers to CSV files.
-        
+
         Args:
             output_dir: Directory to save CSV files (will be created if doesn't exist)
         """
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
-        
+
         # Fetch market data
         market_data = self.provider.fetch_data(self.tickers, self.lookback)
-        
+
         # Save each ticker's data
         for ticker, df in market_data.items():
             try:
@@ -118,6 +119,7 @@ class MarketScanner:
                 print(f"Saved {ticker} data to {filename}")
             except Exception as e:
                 print(f"Error saving {ticker} data: {e}")
+
 
 def main():
     """Example usage of MarketScanner."""
