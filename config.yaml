@@ -1,7 +1,25 @@
 tws:
   host: "host.docker.internal"
-  port: 7496
+  port: 7497 # live/test 7496/7497
+  user: "rnbbop246"
+  password: ${TWS_PASSWORD}  # Reference the environment variable
   client_id: 1
 
 output:
   file: "positions.csv"
+
+# Add market analysis settings
+market_analysis:
+  provider: yahoo  # or ib
+  lookback_days: 100
+  tickers:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - META
+    - NVDA
+    - AMD
+    - TSLA
+    - JPM
+    - V
