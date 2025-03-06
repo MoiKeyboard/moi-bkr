@@ -55,9 +55,9 @@ cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 cerebro.addanalyzer(bt.analyzers.TimeReturn, _name="timereturn")
 
 # Run the backtest
-print('\nStarting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+print("\nStarting Portfolio Value: %.2f" % cerebro.broker.getvalue())
 results = cerebro.run()
-print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+print("Final Portfolio Value: %.2f" % cerebro.broker.getvalue())
 
 # Extract and print performance metrics
 strat = results[0]
@@ -67,13 +67,13 @@ returns = strat.analyzers.returns.get_analysis()
 trades = strat.analyzers.trades.get_analysis()
 
 # Print performance summary
-print('\nPerformance Metrics:')
+print("\nPerformance Metrics:")
 print(f"Sharpe Ratio: {sharpe_ratio['sharperatio']:.2f}")
 print(f"Max Drawdown: {drawdown['max']['drawdown']:.2%}")
 print(f"Total Return: {returns['rtot']:.2%}")
 
 # Trade Analysis
-print('\nTrade Analysis:')
+print("\nTrade Analysis:")
 print(f"Total Trades: {trades['total']['total']}")
 
 # Handle winning trades

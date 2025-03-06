@@ -1,5 +1,5 @@
 tws:
-  host: "host.docker.internal"
+  host: "host.docker.internal" # host.docker.internal or localhost
   port: 7497 # live/test 7496/7497
   user: "rnbbop246"
   password: ${TWS_PASSWORD}  # Reference the environment variable
@@ -10,7 +10,7 @@ output:
 
 # Add market analysis settings
 market_analysis:
-  provider: yahoo  # or ib
+  provider: yahoo  # yahoo or ib
   lookback_days: 100
   tickers:
     - AAPL

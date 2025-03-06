@@ -312,7 +312,7 @@ class ATRVWAPStrategy(bt.Strategy):
 class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
     """
     An enhanced version of ATRMovingAverageStrategy with additional filters.
-    
+
     Core strategy:
     - Uses EMA crossover for primary trend identification
     - MACD for trend confirmation
@@ -322,7 +322,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
     - EMA crossover (primary signal)
     - MACD confirmation
     - RSI in favorable zone (>40 for longs, <60 for shorts)
-    
+
     Exit conditions (any):
     - Trailing stop-loss hit (1.5 * ATR)
     - Take-profit hit (2.0 * ATR)
@@ -353,7 +353,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         self.macd = bt.indicators.MACD(
             period_me1=self.fast_ema_period,
             period_me2=self.slow_ema_period,
-            period_signal=self.signal_ema_period
+            period_signal=self.signal_ema_period,
         )
         self.rsi = bt.indicators.RSI(period=self.rsi_period)
         self.atr = bt.indicators.ATR(period=self.atr_period)
@@ -370,15 +370,15 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         """Calculate position size based on risk management rules."""
         if stop_distance == 0:
             return 0
-            
+
         portfolio_value = self.broker.getvalue()
         risk_amount = portfolio_value * self.risk_per_trade
         position_size = risk_amount / stop_distance
-        
+
         # Limit position size to 5% of portfolio value
         max_position_value = portfolio_value * 0.05
         max_position_size = max_position_value / self.data.close[0]
-        
+
         return int(min(position_size, max_position_size))
 
     def should_long(self):
@@ -479,7 +479,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
             self.position_size = self.calculate_position_size(
                 self.data.close[0] - stop_price
             )
-            
+
             if self.position_size > 0:
                 self.order = self.buy(size=self.position_size)
                 self.entry_price = self.data.close[0]
@@ -492,7 +492,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
             self.position_size = self.calculate_position_size(
                 stop_price - self.data.close[0]
             )
-            
+
             if self.position_size > 0:
                 self.order = self.sell(size=self.position_size)
                 self.entry_price = self.data.close[0]
