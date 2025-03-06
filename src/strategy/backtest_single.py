@@ -7,7 +7,7 @@ from src.strategy.strategies import (
     ATRMovingAverageStrategy,
     VWAPStrategy,
     ATRVWAPStrategy,
-    EnhancedATRStrategy
+    EnhancedATRStrategy,
 )
 
 # Get the directory of the current script
@@ -77,16 +77,16 @@ print("\nTrade Analysis:")
 print(f"Total Trades: {trades['total']['total']}")
 
 # Handle winning trades
-winning_trades = trades.get('won', {}).get('total', 0)
+winning_trades = trades.get("won", {}).get("total", 0)
 print(f"Winning Trades: {winning_trades}")
 
 # Handle losing trades
-losing_trades = trades.get('lost', {}).get('total', 0)
+losing_trades = trades.get("lost", {}).get("total", 0)
 print(f"Losing Trades: {losing_trades}")
 
 # Calculate win rate if there are any trades
-if trades['total']['total'] > 0:
-    win_rate = (winning_trades / trades['total']['total']) * 100
+if trades["total"]["total"] > 0:
+    win_rate = (winning_trades / trades["total"]["total"]) * 100
     print(f"Win Rate: {win_rate:.2f}%")
 
 # Print average wins/losses if they exist
@@ -96,9 +96,9 @@ if losing_trades > 0:
     print(f"Average Loss: {trades['lost']['pnl']['average']:.2f}")
 
 # Calculate profit factor
-if trades['total']['total'] > 0:
-    net_profit = trades.get('pnl', {}).get('net', {}).get('total', 0)
-    gross_profit = trades.get('won', {}).get('pnl', {}).get('total', 0)
+if trades["total"]["total"] > 0:
+    net_profit = trades.get("pnl", {}).get("net", {}).get("total", 0)
+    gross_profit = trades.get("won", {}).get("pnl", {}).get("total", 0)
     gross_loss = abs(net_profit - gross_profit) if gross_profit else abs(net_profit)
     print(f"Profit Factor: {net_profit:.2f} / {gross_loss:.2f}")
 

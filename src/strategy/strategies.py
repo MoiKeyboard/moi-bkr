@@ -317,7 +317,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
     - Uses EMA crossover for primary trend identification
     - MACD for trend confirmation
     - ATR for volatility-based position sizing and stops
-    
+
     Entry conditions (need 2 out of 3):
     - EMA crossover (primary signal)
     - MACD confirmation
@@ -327,13 +327,13 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
     - Trailing stop-loss hit (1.5 * ATR)
     - Take-profit hit (2.0 * ATR)
     - Trend reversal with confirmation
-    
+
     Risk Management:
     - Position sizing based on ATR and fixed risk per trade
     - Trailing stop-loss for winning trades
     - Maximum position size limit
     """
-    
+
     def __init__(self, **kwargs):
         """Initialize indicators and strategy parameters."""
         # Strategy parameters
@@ -346,7 +346,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         self.atr_stop_multiplier = kwargs.get("atr_stop_multiplier", 1.5)
         self.atr_target_multiplier = kwargs.get("atr_target_multiplier", 2.0)
         self.max_holding_days = kwargs.get("max_holding_days", 15)
-        
+
         # Initialize indicators
         self.fast_ema = bt.indicators.EMA(period=self.fast_ema_period)
         self.slow_ema = bt.indicators.EMA(period=self.slow_ema_period)
@@ -357,7 +357,7 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         )
         self.rsi = bt.indicators.RSI(period=self.rsi_period)
         self.atr = bt.indicators.ATR(period=self.atr_period)
-        
+
         # Track position info
         self.order = None
         self.entry_price = None
@@ -385,22 +385,22 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         """Simplified long entry conditions."""
         # Basic trend check
         trend_up = self.fast_ema[0] > self.slow_ema[0]
-        
+
         # Count confirmations
         confirmations = 0
-        
+
         # 1. Price momentum
         if self.data.close[0] > self.data.close[-1]:
             confirmations += 1
-            
+
         # 2. MACD
         if self.macd.macd[0] > self.macd.signal[0]:
             confirmations += 1
-            
+
         # 3. RSI
         if 30 < self.rsi[0] < 70:  # Wider RSI range
             confirmations += 1
-        
+
         # Need trend and at least one confirmation
         return trend_up and confirmations >= 1
 
@@ -408,22 +408,22 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         """Simplified short entry conditions."""
         # Basic trend check
         trend_down = self.fast_ema[0] < self.slow_ema[0]
-        
+
         # Count confirmations
         confirmations = 0
-        
+
         # 1. Price momentum
         if self.data.close[0] < self.data.close[-1]:
             confirmations += 1
-            
+
         # 2. MACD
         if self.macd.macd[0] < self.macd.signal[0]:
             confirmations += 1
-            
+
         # 3. RSI
         if 30 < self.rsi[0] < 70:  # Wider RSI range
             confirmations += 1
-        
+
         # Need trend and at least one confirmation
         return trend_down and confirmations >= 1
 
@@ -431,14 +431,14 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
         """Execute trading logic on each bar."""
         if self.order:
             return
-            
+
         # Print indicator values for debugging
         if len(self) % 5 == 0:  # Print every 5 bars
             print(f"\nBar {len(self)} - Close: {self.data.close[0]:.2f}")
             print(f"EMAs - Fast: {self.fast_ema[0]:.2f}, Slow: {self.slow_ema[0]:.2f}")
             print(f"MACD: {self.macd.macd[0]:.2f}, Signal: {self.macd.signal[0]:.2f}")
             print(f"RSI: {self.rsi[0]:.2f}")
-            
+
         # Check time-based exit for existing positions
         if self.position:
             bars_held = len(self) - self.entry_bar
@@ -446,33 +446,33 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
                 self.close()
                 print(f"Time-based exit at {self.data.close[0]:.2f}")
                 return
-                
+
             # Update trailing stop if in profit
             if self.position.size > 0:  # Long position
                 if self.data.close[0] > self.entry_price:
                     new_stop = max(
                         self.data.close[0] - self.atr[0] * self.atr_stop_multiplier,
-                        self.trailing_stop
+                        self.trailing_stop,
                     )
                     self.trailing_stop = new_stop
-                    
+
                 if self.data.close[0] < self.trailing_stop:
                     self.close()
                     print(f"Long trailing stop hit at {self.data.close[0]:.2f}")
-                    
+
             else:  # Short position
                 if self.data.close[0] < self.entry_price:
                     new_stop = min(
                         self.data.close[0] + self.atr[0] * self.atr_stop_multiplier,
-                        self.trailing_stop
+                        self.trailing_stop,
                     )
                     self.trailing_stop = new_stop
-                    
+
                 if self.data.close[0] > self.trailing_stop:
                     self.close()
                     print(f"Short trailing stop hit at {self.data.close[0]:.2f}")
             return
-            
+
         # Entry logic
         if self.should_long():
             stop_price = self.data.close[0] - self.atr[0] * self.atr_stop_multiplier
@@ -485,8 +485,10 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
                 self.entry_price = self.data.close[0]
                 self.trailing_stop = stop_price
                 self.entry_bar = len(self)
-                print(f"LONG Entry at {self.entry_price:.2f}, Size: {self.position_size}")
-                
+                print(
+                    f"LONG Entry at {self.entry_price:.2f}, Size: {self.position_size}"
+                )
+
         elif self.should_short():
             stop_price = self.data.close[0] + self.atr[0] * self.atr_stop_multiplier
             self.position_size = self.calculate_position_size(
@@ -498,7 +500,9 @@ class EnhancedATRStrategy(bt.Strategy, BaseStrategy):
                 self.entry_price = self.data.close[0]
                 self.trailing_stop = stop_price
                 self.entry_bar = len(self)
-                print(f"SHORT Entry at {self.entry_price:.2f}, Size: {self.position_size}")
+                print(
+                    f"SHORT Entry at {self.entry_price:.2f}, Size: {self.position_size}"
+                )
 
     def notify_trade(self, trade):
         """Track consecutive losses."""
