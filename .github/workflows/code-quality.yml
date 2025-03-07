@@ -45,11 +45,27 @@ jobs:
           if [[ $(git status --porcelain) ]]; then
             echo "Changes detected after formatting"
             git diff
+            
+            # Configure git
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
+            
+            # Create new branch with timestamp
+            BRANCH_NAME="format/auto-format-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b $BRANCH_NAME
+            
+            # Commit and push changes to new branch
             git add src/
-            git commit -m "Auto-format code with Black"
-            git push
+            git commit -m "style: auto-format code with Black"
+            git push origin $BRANCH_NAME
+            
+            # Create Pull Request using GitHub CLI
+            gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+            gh pr create \
+              --title "style: auto-format code with Black" \
+              --body "Automated PR to format code using Black formatter" \
+              --base master \
+              --head $BRANCH_NAME
           else
             echo "No changes detected after formatting"
           fi
