@@ -34,7 +34,9 @@ class IBDataProvider(DataProvider):
         self, tickers: List[str], lookback_period: int
     ) -> Dict[str, pd.DataFrame]:
         """Fetch historical market data from Interactive Brokers."""
-        self.logger.info(f"Fetching data from Interactive Brokers for {len(tickers)} tickers")
+        self.logger.info(
+            f"Fetching data from Interactive Brokers for {len(tickers)} tickers"
+        )
         data = {}
         try:
             self.logger.debug(f"Connecting to TWS at {self.host}:{self.port}")
@@ -42,7 +44,9 @@ class IBDataProvider(DataProvider):
 
             for ticker in tickers:
                 try:
-                    self.logger.debug(f"Fetching {ticker} data for past {lookback_period} days")
+                    self.logger.debug(
+                        f"Fetching {ticker} data for past {lookback_period} days"
+                    )
                     contract = Stock(ticker, "SMART", "USD")
                     bars = self.ib.reqHistoricalData(
                         contract,

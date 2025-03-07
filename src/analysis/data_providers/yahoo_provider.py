@@ -9,9 +9,9 @@ from .base_provider import DataProvider
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
 
 class YahooFinanceProvider(DataProvider):
     """Yahoo Finance data provider implementation."""
@@ -29,7 +29,9 @@ class YahooFinanceProvider(DataProvider):
         data = {}
         for ticker in tickers:
             try:
-                self.logger.debug(f"Fetching {ticker} data for past {lookback_period} days")
+                self.logger.debug(
+                    f"Fetching {ticker} data for past {lookback_period} days"
+                )
                 df = yf.Ticker(ticker).history(period=f"{lookback_period}d")
                 if not df.empty:
                     data[ticker] = df[["Open", "High", "Low", "Close", "Volume"]]
