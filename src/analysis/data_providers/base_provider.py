@@ -1,10 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict
 import pandas as pd
+import logging
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 class DataProvider(ABC):
     """Abstract base class for market data providers."""
+
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
     def fetch_data(

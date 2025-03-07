@@ -3,9 +3,15 @@ from datetime import datetime, timedelta
 import pandas as pd
 from typing import List, Dict
 import pytz
+import logging
 
 from .base_provider import DataProvider
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 class YahooFinanceProvider(DataProvider):
     """Yahoo Finance data provider implementation."""
@@ -13,19 +19,23 @@ class YahooFinanceProvider(DataProvider):
     def __init__(self):
         """Initialize the Yahoo Finance provider."""
         self.ny_tz = pytz.timezone("America/New_York")
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def fetch_data(
         self, tickers: List[str], lookback_period: int
     ) -> Dict[str, pd.DataFrame]:
         """Fetch historical market data from Yahoo Finance."""
+        self.logger.info(f"Fetching data from Yahoo Finance for {len(tickers)} tickers")
         data = {}
         for ticker in tickers:
             try:
+                self.logger.debug(f"Fetching {ticker} data for past {lookback_period} days")
                 df = yf.Ticker(ticker).history(period=f"{lookback_period}d")
                 if not df.empty:
                     data[ticker] = df[["Open", "High", "Low", "Close", "Volume"]]
+                    self.logger.debug(f"Successfully fetched {ticker} data")
             except Exception as e:
-                print(f"Error fetching {ticker}: {e}")
+                self.logger.error(f"Error fetching {ticker}: {e}")
         return data
 
     def is_market_open(self) -> bool:

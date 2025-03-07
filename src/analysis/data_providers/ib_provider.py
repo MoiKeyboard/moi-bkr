@@ -12,10 +12,12 @@ class IBDataProvider(DataProvider):
 
     def __init__(self, host: str, port: int, client_id: int):
         """Initialize IB connection settings."""
+        super().__init__()
         self.host = host
         self.port = port
         self.client_id = client_id
         self.ib = IB()
+        self.logger.info(f"Initialized IB provider with host={host}, port={port}")
         self.ny_tz = pytz.timezone("America/New_York")
 
     def connect(self):
@@ -32,12 +34,15 @@ class IBDataProvider(DataProvider):
         self, tickers: List[str], lookback_period: int
     ) -> Dict[str, pd.DataFrame]:
         """Fetch historical market data from Interactive Brokers."""
+        self.logger.info(f"Fetching data from Interactive Brokers for {len(tickers)} tickers")
         data = {}
         try:
+            self.logger.debug(f"Connecting to TWS at {self.host}:{self.port}")
             self.connect()
 
             for ticker in tickers:
                 try:
+                    self.logger.debug(f"Fetching {ticker} data for past {lookback_period} days")
                     contract = Stock(ticker, "SMART", "USD")
                     bars = self.ib.reqHistoricalData(
                         contract,
@@ -60,12 +65,15 @@ class IBDataProvider(DataProvider):
                             index=[bar.date for bar in bars],
                         )
                         data[ticker] = df
+                        self.logger.debug(f"Successfully fetched {ticker} data")
 
                 except Exception as e:
-                    print(f"Error fetching {ticker}: {e}")
+                    self.logger.error(f"Error fetching {ticker}: {e}")
 
         finally:
-            self.disconnect()
+            if self.ib.isConnected():
+                self.logger.debug("Disconnecting from TWS")
+                self.disconnect()
 
         return data
 
