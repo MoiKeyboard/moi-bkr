@@ -1,5 +1,7 @@
 import backtrader as bt
 import numpy as np
+import pandas as pd
+from typing import Dict
 
 
 class VWAP(bt.Indicator):
@@ -57,3 +59,68 @@ class OBV(bt.Indicator):
             self.lines.obv[0] = prev_obv - self.data.volume[0]
         else:  # Price unchanged
             self.lines.obv[0] = prev_obv
+
+
+class TechnicalIndicators:
+    """Collection of technical indicators for market analysis."""
+    
+    @staticmethod
+    def calculate_all(df: pd.DataFrame) -> Dict[str, pd.Series]:
+        """
+        Calculate all technical indicators for a given DataFrame.
+        
+        Args:
+            df: DataFrame with OHLCV data
+            
+        Returns:
+            Dictionary of indicator Series
+        """
+        indicators = {}
+        
+        # Moving Averages
+        indicators['EMA20'] = TechnicalIndicators.ema(df['Close'], period=20)
+        indicators['EMA50'] = TechnicalIndicators.ema(df['Close'], period=50)
+        
+        # Volume
+        indicators['Volume_MA20'] = TechnicalIndicators.sma(df['Volume'], period=20)
+        
+        # Momentum
+        indicators['RSI'] = TechnicalIndicators.rsi(df['Close'])
+        
+        return indicators
+    
+    @staticmethod
+    def ema(series: pd.Series, period: int = 20) -> pd.Series:
+        """Calculate Exponential Moving Average."""
+        return series.ewm(span=period, adjust=False).mean()
+    
+    @staticmethod
+    def sma(series: pd.Series, period: int = 20) -> pd.Series:
+        """Calculate Simple Moving Average."""
+        return series.rolling(window=period).mean()
+    
+    @staticmethod
+    def rsi(prices: pd.Series, period: int = 14) -> pd.Series:
+        """Calculate Relative Strength Index."""
+        delta = prices.diff()
+        
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+    
+    @staticmethod
+    def calculate_trend_strength(df: pd.DataFrame) -> float:
+        """Calculate trend strength using EMA ratio."""
+        return (df['EMA20'].iloc[-1] / df['EMA50'].iloc[-1] - 1) * 100
+    
+    @staticmethod
+    def calculate_volume_ratio(df: pd.DataFrame) -> float:
+        """Calculate volume strength using current vs average volume."""
+        return df['Volume'].iloc[-1] / df['Volume_MA20'].iloc[-1]
+    
+    @staticmethod
+    def calculate_momentum(df: pd.DataFrame, period: int = 20) -> float:
+        """Calculate price momentum as percentage change."""
+        return (df['Close'].iloc[-1] / df['Close'].iloc[-period] - 1) * 100

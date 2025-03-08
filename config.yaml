@@ -12,6 +12,7 @@ output:
 market_analysis:
   provider: yahoo  # yahoo or ib
   lookback_days: 100
+  data_dir: ".data"
   tickers:
     - AAPL
     - MSFT
