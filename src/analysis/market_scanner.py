@@ -6,6 +6,7 @@ from .data_providers.ib_provider import IBDataProvider
 import os
 import logging
 from src.strategy.indicators import TechnicalIndicators
+from pathlib import Path
 
 
 class MarketScanner:
@@ -14,12 +15,14 @@ class MarketScanner:
     def __init__(self, config_path: str = "config.yaml"):
         """
         Initialize scanner with configuration.
-
-        Args:
-            config_path: Path to YAML configuration file
+        Environment is controlled by ENV_MODE environment variable.
         """
         self.config_path = config_path
         self.logger = logging.getLogger(self.__class__.__name__)
+        
+        # Determine environment from environment variable
+        self.env = os.getenv("ENV_MODE", "dev")
+        self.logger.info(f"Running in {self.env} environment")
         
         # Load configuration
         with open(config_path, "r") as f:
@@ -28,9 +31,9 @@ class MarketScanner:
         self.market_config = config.get("market_analysis", {})
         self.tws_config = config.get("tws", {})
         
-        # Set up data directory from config, with default fallback
-        self.data_dir = self.market_config.get("data_dir", ".data")
-        os.makedirs(self.data_dir, exist_ok=True)
+        # Get environment-specific data directory
+        self.data_dir = self._get_data_directory()
+        self.logger.info(f"Using data directory: {self.data_dir}")
         
         # Initialize data provider and settings
         self.provider = self._create_provider()
@@ -293,42 +296,212 @@ class MarketScanner:
         
         return metrics
 
+    def _get_data_directory(self) -> str:
+        """
+        Get the appropriate data directory based on environment.
+        Returns absolute path to the market scanner data directory.
+        """
+        # Default paths for each environment
+        DEFAULT_PATHS = {
+            "dev": ".data",
+            "prod": "/opt/trading_bot/data"
+        }
+        
+        # Get base directory from config or use default
+        config_dir = self.market_config.get("data_dir")
+        
+        # Determine base directory
+        if isinstance(config_dir, dict):
+            # If config specifies paths per environment
+            base_dir = config_dir.get(self.env, DEFAULT_PATHS[self.env])
+        elif isinstance(config_dir, str):
+            # If config provides a single path, use it for prod, default for dev
+            base_dir = config_dir if self.env == "prod" else DEFAULT_PATHS["dev"]
+        else:
+            # Use defaults if no config provided
+            base_dir = DEFAULT_PATHS[self.env]
+        
+        # Create and return full path
+        full_path = os.path.join(base_dir, "market_scanner")
+        os.makedirs(full_path, exist_ok=True)
+        
+        self.logger.debug(f"Using data directory: {full_path}")
+        return full_path
+
+    def get_latest_analysis(self) -> Dict:
+        """
+        Get the most recent market analysis results.
+        Returns a dictionary with analysis results and metadata.
+        """
+        try:
+            analysis_file = self._get_analysis_filename()
+            if not os.path.exists(analysis_file):
+                self.logger.warning("No analysis file found")
+                return {
+                    "status": "error",
+                    "message": "No analysis available",
+                    "data": None,
+                    "timestamp": None
+                }
+
+            df = pd.read_csv(analysis_file)
+            
+            # Get strong trends
+            strong_trends = df[
+                (df["trend_strength"] > 0)
+                & (df["volume_ratio"] > 1)
+                & (df["above_ema20"])
+            ]
+
+            # Format the results
+            return {
+                "status": "success",
+                "message": "Analysis retrieved successfully",
+                "data": {
+                    "all_stocks": df.to_dict(orient='records'),
+                    "strong_trends": strong_trends.to_dict(orient='records'),
+                    "analysis_date": os.path.basename(analysis_file).split('_')[-1].split('.')[0]
+                },
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+        except Exception as e:
+            self.logger.error(f"Error retrieving analysis: {e}")
+            return {
+                "status": "error",
+                "message": str(e),
+                "data": None,
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+
+    def health_check(self) -> Dict:
+        """
+        Check if the scanner is functioning properly.
+        """
+        try:
+            # Check data directory exists
+            if not os.path.exists(self.data_dir):
+                return {"status": "error", "message": "Data directory not found"}
+            
+            # Check if we have any data files
+            data_files = [f for f in os.listdir(self.data_dir) if f.endswith('.csv')]
+            if not data_files:
+                return {"status": "warning", "message": "No data files found"}
+            
+            # Check if we have recent analysis
+            analysis_file = self._get_analysis_filename()
+            if not os.path.exists(analysis_file):
+                return {"status": "warning", "message": "No recent analysis found"}
+            
+            return {
+                "status": "healthy",
+                "message": "Scanner operational",
+                "data_files": len(data_files),
+                "last_analysis": os.path.getmtime(analysis_file)
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def get_trending_stocks(self) -> Dict:
+        """
+        Get top trending stocks from latest analysis.
+        """
+        try:
+            analysis = self.get_latest_analysis()
+            if analysis["status"] == "error":
+                return analysis
+            
+            strong_trends = analysis["data"]["strong_trends"]
+            return {
+                "status": "success",
+                "message": "Trending stocks retrieved successfully",
+                "data": {
+                    "stocks": strong_trends,
+                    "analysis_date": analysis["data"]["analysis_date"]
+                },
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting trending stocks: {e}")
+            return {
+                "status": "error",
+                "message": str(e),
+                "data": None,
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+
+    def scan_and_analyze(self) -> Dict:
+        """
+        Perform market scan and analysis in one go.
+        Returns formatted results suitable for bot response.
+        """
+        try:
+            self.scan_market()
+            results = self.analyze_tickers()
+            
+            if results.empty:
+                return {
+                    "status": "warning",
+                    "message": "Scan completed but no results found",
+                    "timestamp": pd.Timestamp.now().isoformat()
+                }
+            
+            return {
+                "status": "success",
+                "message": "Market scan completed successfully",
+                "data": {
+                    "total_stocks": len(results),
+                    "analysis_date": pd.Timestamp.now().strftime('%Y%m%d')
+                },
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+        except Exception as e:
+            self.logger.error(f"Error in scan and analysis: {e}")
+            return {
+                "status": "error",
+                "message": str(e),
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+
+    def get_watchlist_status(self) -> Dict:
+        """
+        Get current watchlist status.
+        """
+        return {
+            "status": "success",
+            "message": "Current watchlist retrieved",
+            "data": {
+                "tickers": self.get_tickers(),
+                "total": len(self.tickers)
+            },
+            "timestamp": pd.Timestamp.now().isoformat()
+        }
+
 
 def main():
-    """Example usage of MarketScanner."""
+    """Example usage of MarketScanner demonstrating bot-like commands."""
     scanner = MarketScanner()
     
-    # First scan market to update/create CSV files
-    scanner.scan_market()
+    # Example of /scan command
+    print("\n=== Market Scan ===")
+    scan_result = scanner.scan_and_analyze()
+    print(f"Scan Status: {scan_result['status']}")
+    print(f"Message: {scan_result['message']}")
     
-    # Then analyze the data
-    results = scanner.analyze_tickers()
-
-    if results.empty:
-        print("No results found. Check if data was properly fetched.")
-        return
-
-    pd.set_option("display.max_columns", None)
-    print("\nMarket Scanner Results:")
-    print("=====================")
-    print(results)
-
-    print("\nStrong Trending Stocks:")
-    print("=====================")
-    strong_trends = results[
-        (results["trend_strength"] > 0)
-        & (results["volume_ratio"] > 1)
-        & (results["above_ema20"])
-    ]
-
-    columns_to_show = [
-        "symbol",
-        "trend_strength",
-        "volume_ratio",
-        "price_momentum",
-        "current_price",
-    ]
-    print(strong_trends[columns_to_show])
+    # Example of /trending command
+    print("\n=== Trending Stocks ===")
+    trending = scanner.get_trending_stocks()
+    if trending["status"] == "success":
+        for stock in trending["data"]["stocks"]:
+            print(f"\nSymbol: {stock['symbol']}")
+            print(f"Trend Strength: {stock['trend_strength']:.2f}")
+            print(f"Volume Ratio: {stock['volume_ratio']:.2f}")
+            print(f"Current Price: ${stock['current_price']:.2f}")
+    
+    # Example of /watchlist command
+    print("\n=== Watchlist Status ===")
+    watchlist = scanner.get_watchlist_status()
+    print(f"Total Tickers: {watchlist['data']['total']}")
+    print(f"Tickers: {', '.join(watchlist['data']['tickers'])}")
 
 
 if __name__ == "__main__":
