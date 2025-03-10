@@ -43,66 +43,66 @@ class MarketScanner:
     def add_tickers(self, tickers: List[str]) -> None:
         """
         Add tickers to watchlist, handling edge cases.
-        
+
         Args:
             tickers: List of ticker symbols to add
         """
         if not tickers:
             self.logger.warning("No tickers provided to add")
             return
-        
+
         # Convert to uppercase and remove duplicates
         new_tickers = [t.upper() for t in tickers if isinstance(t, str)]
         new_tickers = list(set(new_tickers))
-        
+
         # Filter out already existing tickers
         existing_tickers = set(self.tickers)
         actually_new = [t for t in new_tickers if t not in existing_tickers]
-        
+
         if not actually_new:
             self.logger.info("No new tickers to add (all already exist)")
             return
-        
+
         # Add new tickers
         self.tickers.extend(actually_new)
         self.logger.info(f"Added {len(actually_new)} new tickers: {actually_new}")
-        
+
         # Update config
         self._update_config()
 
     def remove_tickers(self, tickers: List[str]) -> None:
         """
         Remove tickers from watchlist, handling edge cases.
-        
+
         Args:
             tickers: List of ticker symbols to remove
         """
         if not tickers:
             self.logger.warning("No tickers provided to remove")
             return
-        
+
         # Convert to uppercase for comparison
         remove_set = set(t.upper() for t in tickers if isinstance(t, str))
-        
+
         # Find tickers that actually exist
         existing_set = set(self.tickers)
         to_remove = remove_set.intersection(existing_set)
-        
+
         if not to_remove:
             self.logger.info("No matching tickers found to remove")
             return
-        
+
         # Remove tickers
         self.tickers = [t for t in self.tickers if t not in to_remove]
         self.logger.info(f"Removed {len(to_remove)} tickers: {to_remove}")
-        
+
         # Update config
         self._update_config()
 
     def get_tickers(self) -> List[str]:
         """
         Get current watchlist tickers.
-        
+
         Returns:
             List of ticker symbols
         """
