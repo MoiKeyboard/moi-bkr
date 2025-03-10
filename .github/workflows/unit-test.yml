@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
@@ -25,10 +28,10 @@ jobs:
           pip install fastapi pytest-asyncio httpx
 
       - name: Run MarketScanner tests
-        run: python -m unittest tests.test_market_scanner.TestMarketScanner
+        run: python tests/test_market_scanner.py
 
       - name: Run Scanner API tests
-        run: python -m unittest tests.test_scanner_api.TestScannerAPI
+        run: python tests/test_scanner_api.py
 
       # - name: Run all tests together (verify no interference)
       #   run: python -m unittest discover tests
