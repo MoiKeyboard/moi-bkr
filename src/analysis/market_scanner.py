@@ -473,6 +473,13 @@ class MarketScanner:
         Returns formatted results suitable for bot response.
         """
         try:
+            if not self.tickers:
+                return {
+                    "status": "warning",
+                    "message": "No tickers configured for scanning",
+                    "timestamp": pd.Timestamp.now().isoformat()
+                }
+
             self.scan_market()
             results = self.analyze_tickers()
 

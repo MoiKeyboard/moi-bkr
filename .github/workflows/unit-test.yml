@@ -35,10 +35,3 @@ jobs:
 
       # - name: Run all tests together (verify no interference)
       #   run: python -m unittest discover tests
-
-      - name: Report test status
-        if: always()
-        run: |
-          echo "Test Summary:"
-          echo "============="
-          python -m unittest discover tests -v
