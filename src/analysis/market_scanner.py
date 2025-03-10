@@ -43,66 +43,64 @@ class MarketScanner:
     def add_tickers(self, tickers: List[str]) -> None:
         """
         Add tickers to watchlist, handling edge cases.
-        
+
         Args:
             tickers: List of ticker symbols to add
         """
         if not tickers:
             self.logger.warning("No tickers provided to add")
             return
-        
+
         # Convert to uppercase and remove duplicates
         # Filter out None, non-string values, and empty strings
-        valid_tickers = [t.upper() for t in tickers 
-                        if isinstance(t, str) and t.strip()]
+        valid_tickers = [t.upper() for t in tickers if isinstance(t, str) and t.strip()]
         unique_tickers = list(set(valid_tickers))
-        
+
         if not unique_tickers:
             self.logger.warning("No valid tickers to add")
             return
-        
+
         # Get current tickers as a set for efficient lookup
         current_tickers = set(self.tickers)
-        
+
         # Find truly new tickers
-        new_tickers = [t for t in unique_tickers 
-                       if t not in current_tickers]
-        
+        new_tickers = [t for t in unique_tickers if t not in current_tickers]
+
         if not new_tickers:
             self.logger.info("No new tickers to add (all already exist)")
             return
-        
+
         # Add new tickers
         self.tickers.extend(new_tickers)
         self.logger.info(f"Added {len(new_tickers)} new tickers: {new_tickers}")
-        
+
         # Update config
         self._update_config()
 
     def remove_tickers(self, tickers: List[str]) -> None:
         """
         Remove tickers from watchlist, handling edge cases.
-        
+
         Args:
             tickers: List of ticker symbols to remove
         """
         if not tickers:
             self.logger.warning("No tickers provided to remove")
             return
-        
+
         # Convert to uppercase and filter invalid
-        valid_tickers = {t.upper() for t in tickers 
-                        if isinstance(t, str) and t.strip()}
-        
+        valid_tickers = {t.upper() for t in tickers if isinstance(t, str) and t.strip()}
+
         if not valid_tickers:
             self.logger.warning("No valid tickers to remove")
             return
-        
+
         # Remove tickers that exist
         original_count = len(self.tickers)
-        self.tickers = [t for t in self.tickers 
-                        if t not in valid_tickers and t.strip()]  # Also filter empty strings
-        
+        self.tickers = [
+            t for t in self.tickers if t not in valid_tickers and t.strip()
+        ]  # Also filter empty strings
+
         removed_count = original_count - len(self.tickers)
         if removed_count > 0:
             self.logger.info(f"Removed {removed_count} tickers")
@@ -113,7 +111,7 @@ class MarketScanner:
     def get_tickers(self) -> List[str]:
         """
         Get current watchlist tickers.
-        
+
         Returns:
             List of ticker symbols
         """
@@ -477,7 +475,7 @@ class MarketScanner:
                 return {
                     "status": "warning",
                     "message": "No tickers configured for scanning",
-                    "timestamp": pd.Timestamp.now().isoformat()
+                    "timestamp": pd.Timestamp.now().isoformat(),
                 }
 
             self.scan_market()
