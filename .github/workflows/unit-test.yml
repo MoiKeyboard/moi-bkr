@@ -1,0 +1,41 @@
+name: Unit Test
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install fastapi pytest-asyncio httpx
+
+      - name: Run MarketScanner tests
+        run: python -m unittest tests.test_market_scanner.TestMarketScanner
+
+      - name: Run Scanner API tests
+        run: python -m unittest tests.test_scanner_api.TestScannerAPI
+
+      # - name: Run all tests together (verify no interference)
+      #   run: python -m unittest discover tests
+
+      - name: Report test status
+        if: always()
+        run: |
+          echo "Test Summary:"
+          echo "============="
+          python -m unittest discover tests -v
