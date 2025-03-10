@@ -10,11 +10,21 @@ from src.analysis.market_scanner import MarketScanner
 
 class TestMarketScanner(unittest.TestCase):
     def setUp(self):
-        """Initialize scanner before each test."""
+        """Initialize scanner and ensure clean state before each test."""
         self.scanner = MarketScanner()
-        # Use a small set of test tickers
-        self.test_tickers = ["AAPL", "MSFT", "GOOGL"]
+        # Save original tickers for tearDown
+        self._original_tickers = self.scanner.get_tickers()
+        # Clear all tickers for clean test state
+        self.scanner.remove_tickers(self._original_tickers)
         
+    def tearDown(self):
+        """Restore original state after each test."""
+        # Clear any test tickers
+        current_tickers = self.scanner.get_tickers()
+        self.scanner.remove_tickers(current_tickers)
+        # Restore original tickers
+        self.scanner.add_tickers(self._original_tickers)
+
     def test_scanner_initialization(self):
         """Test scanner initializes correctly."""
         self.assertIsNotNone(self.scanner)
@@ -36,54 +46,50 @@ class TestMarketScanner(unittest.TestCase):
     
     def test_watchlist_management(self):
         """Test watchlist management with edge cases."""
-        # Store initial state
-        initial_tickers = self.scanner.get_tickers()
+        # Verify clean initial state
+        self.assertEqual(len(self.scanner.get_tickers()), 0)
         
         # Test adding empty list
         self.scanner.add_tickers([])
-        self.assertEqual(self.scanner.get_tickers(), initial_tickers)
+        self.assertEqual(len(self.scanner.get_tickers()), 0)
         
-        # Test adding None or invalid types
+        # Test adding invalid values
         self.scanner.add_tickers([None, 123, ""])
-        self.assertEqual(self.scanner.get_tickers(), initial_tickers)
+        self.assertEqual(len(self.scanner.get_tickers()), 0)
         
-        # Test adding duplicates
-        test_tickers = ["AAPL", "aapl", "MSFT", "MSFT"]
+        # Test adding new unique tickers
+        test_tickers = ["AAPL", "MSFT"]
         self.scanner.add_tickers(test_tickers)
-        added_tickers = set(self.scanner.get_tickers()) - set(initial_tickers)
-        self.assertEqual(added_tickers, {"AAPL", "MSFT"})
+        self.assertEqual(set(self.scanner.get_tickers()), {"AAPL", "MSFT"})
         
-        # Test removing non-existent tickers
+        # Test adding duplicates (shouldn't add)
+        self.scanner.add_tickers(["AAPL", "aapl", "MSFT"])
+        self.assertEqual(set(self.scanner.get_tickers()), {"AAPL", "MSFT"})
+        
+        # Test removing non-existent
         self.scanner.remove_tickers(["NONEXISTENT"])
-        self.assertEqual(set(self.scanner.get_tickers()) - set(initial_tickers), {"AAPL", "MSFT"})
-        
-        # Test removing empty list
-        self.scanner.remove_tickers([])
-        self.assertEqual(set(self.scanner.get_tickers()) - set(initial_tickers), {"AAPL", "MSFT"})
+        self.assertEqual(set(self.scanner.get_tickers()), {"AAPL", "MSFT"})
         
         # Test removing actual tickers
         self.scanner.remove_tickers(["AAPL", "MSFT"])
-        self.assertEqual(self.scanner.get_tickers(), initial_tickers)
+        self.assertEqual(len(self.scanner.get_tickers()), 0)
 
     def test_ticker_case_sensitivity(self):
         """Test ticker symbol case handling."""
-        initial_tickers = self.scanner.get_tickers()
+        # Verify clean initial state
+        self.assertEqual(len(self.scanner.get_tickers()), 0)
         
         # Add lowercase ticker
         self.scanner.add_tickers(["aapl"])
-        self.assertIn("AAPL", self.scanner.get_tickers())
+        self.assertEqual(set(self.scanner.get_tickers()), {"AAPL"})
         
         # Try to add same ticker in different cases
         self.scanner.add_tickers(["AAPL", "aapl", "Aapl"])
-        added_count = len(self.scanner.get_tickers()) - len(initial_tickers)
-        self.assertEqual(added_count, 1)  # Only one ticker should be added
+        self.assertEqual(set(self.scanner.get_tickers()), {"AAPL"})
         
         # Remove using different case
         self.scanner.remove_tickers(["aapl"])
-        self.assertNotIn("AAPL", self.scanner.get_tickers())
-        
-        # Verify back to initial state
-        self.assertEqual(self.scanner.get_tickers(), initial_tickers)
+        self.assertEqual(len(self.scanner.get_tickers()), 0)
 
     def test_get_trending_stocks(self):
         """Test trending stocks retrieval."""

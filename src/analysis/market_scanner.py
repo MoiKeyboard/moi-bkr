@@ -52,20 +52,29 @@ class MarketScanner:
             return
         
         # Convert to uppercase and remove duplicates
-        new_tickers = [t.upper() for t in tickers if isinstance(t, str)]
-        new_tickers = list(set(new_tickers))
+        # Filter out None, non-string values, and empty strings
+        valid_tickers = [t.upper() for t in tickers 
+                        if isinstance(t, str) and t.strip()]
+        unique_tickers = list(set(valid_tickers))
         
-        # Filter out already existing tickers
-        existing_tickers = set(self.tickers)
-        actually_new = [t for t in new_tickers if t not in existing_tickers]
+        if not unique_tickers:
+            self.logger.warning("No valid tickers to add")
+            return
         
-        if not actually_new:
+        # Get current tickers as a set for efficient lookup
+        current_tickers = set(self.tickers)
+        
+        # Find truly new tickers
+        new_tickers = [t for t in unique_tickers 
+                       if t not in current_tickers]
+        
+        if not new_tickers:
             self.logger.info("No new tickers to add (all already exist)")
             return
         
         # Add new tickers
-        self.tickers.extend(actually_new)
-        self.logger.info(f"Added {len(actually_new)} new tickers: {actually_new}")
+        self.tickers.extend(new_tickers)
+        self.logger.info(f"Added {len(new_tickers)} new tickers: {new_tickers}")
         
         # Update config
         self._update_config()
@@ -81,23 +90,25 @@ class MarketScanner:
             self.logger.warning("No tickers provided to remove")
             return
         
-        # Convert to uppercase for comparison
-        remove_set = set(t.upper() for t in tickers if isinstance(t, str))
+        # Convert to uppercase and filter invalid
+        valid_tickers = {t.upper() for t in tickers 
+                        if isinstance(t, str) and t.strip()}
         
-        # Find tickers that actually exist
-        existing_set = set(self.tickers)
-        to_remove = remove_set.intersection(existing_set)
-        
-        if not to_remove:
-            self.logger.info("No matching tickers found to remove")
+        if not valid_tickers:
+            self.logger.warning("No valid tickers to remove")
             return
         
-        # Remove tickers
-        self.tickers = [t for t in self.tickers if t not in to_remove]
-        self.logger.info(f"Removed {len(to_remove)} tickers: {to_remove}")
+        # Remove tickers that exist
+        original_count = len(self.tickers)
+        self.tickers = [t for t in self.tickers 
+                        if t not in valid_tickers and t.strip()]  # Also filter empty strings
         
-        # Update config
-        self._update_config()
+        removed_count = original_count - len(self.tickers)
+        if removed_count > 0:
+            self.logger.info(f"Removed {removed_count} tickers")
+            self._update_config()
+        else:
+            self.logger.info("No matching tickers found to remove")
 
     def get_tickers(self) -> List[str]:
         """
