@@ -14,7 +14,7 @@ market_analysis:
   lookback_days: 100
   data_dir:
     dev: ".data"
-    prod: "/opt/trading_bot/data"
+    prod: ".data"
   tickers:
     - AAPL
     - MSFT
