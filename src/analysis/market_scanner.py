@@ -156,33 +156,56 @@ class MarketScanner:
 
     def _get_analysis_filename(self) -> str:
         """Generate filename for analysis results with current date."""
-        current_date = pd.Timestamp.now()
-
+        # Use UTC timestamp
+        current_utc = pd.Timestamp.now(tz='UTC')
+        
+        # Convert to EST for market day reference
+        current_est = current_utc.tz_convert('America/New_York')
+        
         # If weekend, use Friday's date
-        if current_date.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
-            days_to_subtract = current_date.weekday() - 4  # 4 = Friday
-            current_date = current_date - pd.Timedelta(days=days_to_subtract)
+        if current_est.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+            days_to_subtract = current_est.weekday() - 4  # 4 = Friday
+            current_est = current_est - pd.Timedelta(days=days_to_subtract)
 
-        date_str = current_date.strftime("%Y%m%d")
+        date_str = current_est.strftime("%Y%m%d")
         return os.path.join(self.data_dir, f"market_analysis_results_{date_str}.csv")
 
     def scan_market(self) -> None:
         """
         Scan market and update data files for all tickers.
-        Only fetches new data if needed.
+        Only fetches new data if market has new data available.
         """
         self.logger.info("Starting market scan...")
 
-        # Get current date and check if it's a weekend
-        current_date = pd.Timestamp.now()
-        is_weekend = current_date.weekday() >= 5  # 5 = Saturday, 6 = Sunday
+        # Get current UTC time
+        current_utc = pd.Timestamp.now(tz='UTC')
+        
+        # Convert to US Eastern time for market hours check
+        current_est = current_utc.tz_convert('America/New_York')
+        self.logger.debug(f"Current time - UTC: {current_utc}, EST: {current_est}")
+        
+        # Check if market is not open (before 9:30 AM EST)
+        market_not_open = current_est.hour < 9 or (current_est.hour == 9 and current_est.minute < 30)
+        
+        # Use UTC for date comparisons
+        reference_date = current_utc
+        
+        # If weekend or before market open, use last trading day
+        if reference_date.weekday() >= 5 or market_not_open:
+            # If weekend, get last Friday
+            if reference_date.weekday() >= 5:
+                days_to_subtract = reference_date.weekday() - 4  # 4 = Friday
+                reference_date = reference_date - pd.Timedelta(days=days_to_subtract)
+            # If before market open, use previous day
+            elif market_not_open:
+                reference_date = reference_date - pd.Timedelta(days=1)
+                # If previous day was weekend, get Friday
+                if reference_date.weekday() >= 5:
+                    days_to_subtract = reference_date.weekday() - 4
+                    reference_date = reference_date - pd.Timedelta(days=days_to_subtract)
 
-        # If it's weekend, use last Friday's date
-        if is_weekend:
-            days_to_subtract = current_date.weekday() - 4  # 4 = Friday
-            current_date = current_date - pd.Timedelta(days=days_to_subtract)
-
-        current_date_str = current_date.strftime("%Y%m%d")
+        reference_date_str = reference_date.strftime("%Y%m%d")
+        self.logger.info(f"Using reference date: {reference_date_str} (UTC)")
 
         for ticker in self.tickers:
             try:
@@ -196,12 +219,13 @@ class MarketScanner:
                 if existing_file:
                     # Read existing data to check latest date
                     df = pd.read_csv(existing_file, index_col=0, parse_dates=True)
+                    df.index = pd.to_datetime(df.index, utc=True)  # Ensure UTC timezone
                     latest_date = df.index[-1].strftime("%Y%m%d")
 
-                    # Skip if data is current (using the adjusted current date)
-                    if latest_date >= current_date_str:
+                    # Skip if data is current
+                    if latest_date >= reference_date_str:
                         self.logger.info(
-                            f"{ticker}: Data is current (last: {latest_date}, current: {current_date_str}), skipping..."
+                            f"{ticker}: Data is current (last: {latest_date}, ref: {reference_date_str}), skipping..."
                         )
                         continue
 
@@ -383,8 +407,8 @@ class MarketScanner:
             # Get strong trends
             strong_trends = df[
                 (df["trend_strength"] > 0)
-                & (df["volume_ratio"] > 1)
-                & (df["above_ema20"])
+                # & (df["volume_ratio"] > 1)
+                # & (df["above_ema20"])
             ]
 
             # Format the results
