@@ -3,6 +3,8 @@ name: Code Quality
 on:
   push:
     branches: [ main, master, develop ]
+    paths:
+      - src/**
 
 # Add permissions
 permissions:
