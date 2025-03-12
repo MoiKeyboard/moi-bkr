@@ -74,6 +74,12 @@ class IBDataProvider(DataProvider):
                 except Exception as e:
                     self.logger.error(f"Error fetching {ticker}: {e}")
 
+        except ConnectionError as e:
+            self.logger.error(f"TWS connection error: {e}")
+            return {}
+        except Exception as e:
+            self.logger.error(f"Error fetching data from TWS: {e}")
+            return {}
         finally:
             if self.ib.isConnected():
                 self.logger.debug("Disconnecting from TWS")
@@ -92,9 +98,10 @@ class IBDataProvider(DataProvider):
             self.connect()
             # Use IB's market hours data
             return self.ib.marketPrice(Stock("SPY", "SMART", "USD")) > 0
-        except:
+        except (AttributeError, ValueError) as e:
+            # Fallback to time-based check if calendar lookup fails
+            self.logger.debug(f"Calendar lookup failed: {e}, falling back to time-based check")
             now = datetime.now(self.ny_tz)
-            # Fallback to time-based check
 
             if now.weekday() >= 5:
                 return False
