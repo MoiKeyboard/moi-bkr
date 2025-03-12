@@ -157,11 +157,11 @@ class MarketScanner:
     def _get_analysis_filename(self) -> str:
         """Generate filename for analysis results with current date."""
         # Use UTC timestamp
-        current_utc = pd.Timestamp.now(tz='UTC')
-        
+        current_utc = pd.Timestamp.now(tz="UTC")
+
         # Convert to EST for market day reference
-        current_est = current_utc.tz_convert('America/New_York')
-        
+        current_est = current_utc.tz_convert("America/New_York")
+
         # If weekend, use Friday's date
         if current_est.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
             days_to_subtract = current_est.weekday() - 4  # 4 = Friday
@@ -178,18 +178,20 @@ class MarketScanner:
         self.logger.info("Starting market scan...")
 
         # Get current UTC time
-        current_utc = pd.Timestamp.now(tz='UTC')
-        
+        current_utc = pd.Timestamp.now(tz="UTC")
+
         # Convert to US Eastern time for market hours check
-        current_est = current_utc.tz_convert('America/New_York')
+        current_est = current_utc.tz_convert("America/New_York")
         self.logger.debug(f"Current time - UTC: {current_utc}, EST: {current_est}")
-        
+
         # Check if market is not open (before 9:30 AM EST)
-        market_not_open = current_est.hour < 9 or (current_est.hour == 9 and current_est.minute < 30)
-        
+        market_not_open = current_est.hour < 9 or (
+            current_est.hour == 9 and current_est.minute < 30
+        )
+
         # Use UTC for date comparisons
         reference_date = current_utc
-        
+
         # If weekend or before market open, use last trading day
         if reference_date.weekday() >= 5 or market_not_open:
             # If weekend, get last Friday
@@ -202,7 +204,9 @@ class MarketScanner:
                 # If previous day was weekend, get Friday
                 if reference_date.weekday() >= 5:
                     days_to_subtract = reference_date.weekday() - 4
-                    reference_date = reference_date - pd.Timedelta(days=days_to_subtract)
+                    reference_date = reference_date - pd.Timedelta(
+                        days=days_to_subtract
+                    )
 
         reference_date_str = reference_date.strftime("%Y%m%d")
         self.logger.info(f"Using reference date: {reference_date_str} (UTC)")
