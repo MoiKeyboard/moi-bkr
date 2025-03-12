@@ -93,8 +93,8 @@ class IBDataProvider(DataProvider):
             # Use IB's market hours data
             return self.ib.marketPrice(Stock("SPY", "SMART", "USD")) > 0
         except:
-            # Fallback to time-based check
             now = datetime.now(self.ny_tz)
+            # Fallback to time-based check
 
             if now.weekday() >= 5:
                 return False
