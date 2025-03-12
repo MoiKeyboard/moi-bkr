@@ -100,7 +100,9 @@ class IBDataProvider(DataProvider):
             return self.ib.marketPrice(Stock("SPY", "SMART", "USD")) > 0
         except (AttributeError, ValueError) as e:
             # Fallback to time-based check if calendar lookup fails
-            self.logger.debug(f"Calendar lookup failed: {e}, falling back to time-based check")
+            self.logger.debug(
+                f"Calendar lookup failed: {e}, falling back to time-based check"
+            )
             now = datetime.now(self.ny_tz)
 
             if now.weekday() >= 5:
