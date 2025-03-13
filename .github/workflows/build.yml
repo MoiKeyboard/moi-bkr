@@ -34,61 +34,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ inputs.version }}
-            type=raw,value=latest,enable=${{ inputs.version == 'latest' }}
-            type=sha,format=long
-
-      - name: Build and test Docker Compose
-        run: |
-          # Create .data directory for volume mount
-          mkdir -p .data
-          
-          # Build the image
-          docker compose build
-          
-          # Start the container
-          docker compose up -d
-          
-          # Wait for container to be healthy
-          timeout 30s bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8000/health)" != "200" ]]; do sleep 2; done' || false
-          
-          # Run basic tests
-          curl -f http://localhost:8000/health
-          
-          # Stop container
-          docker compose down
-
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           labels: |
             org.opencontainers.image.version=${{ inputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           platforms: linux/amd64
           build-args: |
             PORT=8000
             ENV_MODE=prod
 
-      - name: Verify Python version
+      - name: Test container
         run: |
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} python --version | grep "Python 3.12"
-
-      - name: Verify image
-        run: |
-          # Pull the image we just pushed
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}
+          # Pull and test the image
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} python --version
           
           # Run container with health check
           docker run -d --name test-container \
@@ -97,8 +61,9 @@ jobs:
             -e PORT=8000 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}
           
-          # Wait for container to be healthy
+          # Wait for health check and verify
           timeout 30s bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8000/health)" != "200" ]]; do sleep 2; done' || false
+          curl -f http://localhost:8000/health
           
           # Clean up
           docker stop test-container
