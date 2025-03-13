@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/market-scanner
+  IMAGE_NAME: ${{ toLowerCase(github.repository) }}/market-scanner
   DOCKER_BUILDKIT: 1
 
 jobs:
