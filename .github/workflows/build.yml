@@ -10,8 +10,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository | lower }}/market-scanner
-  DOCKER_BUILDKIT: 1
 
 jobs:
   build-and-push:
@@ -21,6 +19,9 @@ jobs:
       packages: write
       
     steps:
+      - name: Set image name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }}/market-scanner | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
