@@ -132,6 +132,8 @@ market_analysis:
     - ✅ "Enable connection at start-up" is checked.
 
 ## Project Structure
+
+```
 ├── src/
 │ ├── analysis/ # Market analysis and data providers
 │ ├── api/ # API endpoints
@@ -142,6 +144,7 @@ market_analysis:
 ├── config.yaml # Configuration file
 ├── docker-compose.yml # Docker composition
 └── requirements.txt # Python dependencies
+```
 
 ## Contributing
 
