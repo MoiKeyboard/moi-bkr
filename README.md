@@ -2,6 +2,24 @@
 
 A comprehensive algorithmic trading system that integrates market scanning, technical analysis, and automated trading strategies using Interactive Brokers and Yahoo Finance data providers.
 
+- [Algorithmic Trading System](#algorithmic-trading-system)
+  - [Features](#features)
+    - [Market Scanner](#market-scanner)
+    - [Trading Strategies](#trading-strategies)
+    - [API Endpoints](#api-endpoints)
+  - [Prerequisites](#prerequisites)
+  - [Installation (Python)](#installation-python)
+  - [Installation (Docker Container)](#installation-docker-container)
+    - [Pull from GitHub Container Registry](#pull-from-github-container-registry)
+    - [Run the Container](#run-the-container)
+  - [Configuration](#configuration)
+  - [Data Provider Setup](#data-provider-setup)
+    - [IBKR Trade Workstation settings](#ibkr-trade-workstation-settings)
+  - [Project Structure](#project-structure)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Acknowledgments](#acknowledgments)
+
 ## Features
 
 ### Market Scanner
