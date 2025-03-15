@@ -12,9 +12,44 @@ services:
       - "8000:8000"
     volumes:
       - ./.data:/app/.data
+      - ./config.yaml:/app/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - trading-network
 
+  # Traefik reverse proxy service
+  reverse-proxy:
+    image: traefik:v3.3  # Official Traefik v3.3 image
+    container_name: traefik
+    command:
+      - "--api.insecure=true"      # Enable Traefik dashboard without auth (development only)
+      - "--providers.docker=true"   # Enable Docker provider to detect services
+      - "--providers.docker.exposedbydefault=false"  # Don't expose containers by default
+      - "--entrypoints.web.address=:80"  # Define HTTP entrypoint
+    ports:
+      - "80:80"      # HTTP port for incoming traffic
+      - "8080:8080"  # Traefik dashboard port
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket for service discovery (read-only)
+    networks:
+      - trading-network
+
+  # Test service to verify Traefik routing
+  whoami:
+    image: traefik/whoami  # Simple test container that shows request info
+    container_name: whoami
+    labels:
+      - "traefik.enable=true"  # Enable Traefik for this container
+      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"  # Route requests for whoami.localhost
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"   # Container port to route to
+    networks:
+      - trading-network
+
+# Shared network for all services
 networks:
   trading-network:
     name: trading-network 
