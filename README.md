@@ -7,6 +7,7 @@ A comprehensive algorithmic trading system that integrates market scanning, tech
     - [Market Scanner](#market-scanner)
     - [Trading Strategies](#trading-strategies)
     - [API Endpoints](#api-endpoints)
+  - [Milestones](#milestones)
   - [Prerequisites](#prerequisites)
   - [Installation (Python)](#installation-python)
   - [Installation (Docker Container)](#installation-docker-container)
@@ -42,6 +43,17 @@ A comprehensive algorithmic trading system that integrates market scanning, tech
 - `/health` - Service health check
 - `/scan` - Trigger market scan
 - `/trending` - Get trending stocks
+
+## Milestones
+- ✅ Traefik integration (reverse proxy, TLS)
+- ⏳ Telegram bot integration
+- ⏳ Encrypt data in transit 
+- ⏳ Managed Cloud or VPS deployment
+- ⏳ API watchlist functionality
+- ⏳ Configuration management refactoring
+- ⏳ Environment config management
+- ⏳ Centralized logging
+- ⏳ Config.yaml immutability
 
 ## Prerequisites
 
