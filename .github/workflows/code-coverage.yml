@@ -59,7 +59,10 @@ jobs:
             else if (coverage < 80) print "yellow";
             else print "brightgreen";
           }')
-          BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}?link=${{ env.WORKFLOW_URL }}"
+          # URL encode the workflow URL
+          ENCODED_URL=$(echo "${{ env.WORKFLOW_URL }}" | sed 's/\//%2F/g' | sed 's/:/%3A/g')
+          # Create badge URL with encoded link
+          BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}?link=${ENCODED_URL}"
           echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
 
       - name: Download Badge as SVG
@@ -71,8 +74,18 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git pull
+          
+          # Create directory if it doesn't exist
+          mkdir -p .github/badges
+          
+          # Add and commit only the badge file
           git add .github/badges/code_coverage.svg
-          git commit -m "Update badge in .github/badges folder"
-          git push
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          else
+            git commit -m "Update code coverage badge"
+            git push
+          fi
