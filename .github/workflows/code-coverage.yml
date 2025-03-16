@@ -39,7 +39,7 @@ jobs:
           coverage=$(grep "TOTAL" pytest_output.txt | awk '{print $4}')
           echo "coverage_percentage=$coverage" >> $GITHUB_OUTPUT
 
-      - name: Generate Coverage Badge
+      - name: Generate Coverage Badge URL
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage_percentage }}
           COLOR=$(awk -v coverage=$COVERAGE 'BEGIN {
@@ -47,16 +47,19 @@ jobs:
             else if (coverage < 80) print "yellow";
             else print "brightgreen";
           }')
-          BADGE_URL="https://img.shields.io/badge/Code_Coverage-$COVERAGE%25-$COLOR?logo=github"
+          BADGE_URL="https://img.shields.io/badge/Code_Coverage-$COVERAGE%25-$COLOR.svg?logo=github"
           echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
 
-      - name: Commit Badge to .github Folder
+      - name: Download Badge as SVG
+        run: |
+          mkdir -p .github/badges
+          curl -o .github/badges/code_coverage.svg "$BADGE_URL"
+
+      - name: Commit Badge to Repository
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull
-          mkdir -p .github/badges
-          echo "![Code Coverage]($BADGE_URL)" > .github/badges/code_coverage_badge.md
-          git add .github/badges/code_coverage_badge.md
-          git commit -m "Update code coverage badge in .github folder"
+          git add .github/badges/code_coverage.svg
+          git commit -m "Update code coverage badge in .github/badges folder"
           git push

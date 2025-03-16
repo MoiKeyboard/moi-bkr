@@ -57,7 +57,7 @@ jobs:
           # Output the results
           echo "TEST_RESULTS=Total Tests: $TOTAL_TESTS, Passed Tests: $PASSED_TESTS, Pass Percentage: $PASS_PERCENTAGE%" >> $GITHUB_ENV
 
-      - name: Generate Test Coverage Badge
+      - name: Generate Test Coverage Badge URL
         run: |
           PASS_PERCENTAGE=$(echo "$TEST_RESULTS" | grep -oP 'Pass Percentage: \K\d+')
           COLOR=$(awk -v pass_percentage=$PASS_PERCENTAGE 'BEGIN {
@@ -65,16 +65,19 @@ jobs:
             else if (pass_percentage < 80) print "yellow";
             else print "brightgreen";
           }')
-          BADGE_URL="https://img.shields.io/badge/Test_Coverage-$PASS_PERCENTAGE%25-$COLOR?logo=github"
+          BADGE_URL="https://img.shields.io/badge/Test_Coverage-$PASS_PERCENTAGE%25-$COLOR.svg?logo=github"
           echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
 
-      - name: Commit Badge to .github Folder
+      - name: Download Badge as SVG
+        run: |
+          mkdir -p .github/badges
+          curl -o .github/badges/test_coverage.svg "$BADGE_URL"
+
+      - name: Commit Badge to Repository
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull
-          mkdir -p .github/badges
-          echo "![Test Coverage]($BADGE_URL)" > .github/badges/test_coverage_badge.md
-          git add .github/badges/test_coverage_badge.md
-          git commit -m "Update test coverage badge in .github folder"
+          git add .github/badges/test_coverage.svg
+          git commit -m "Update test coverage badge in .github/badges folder"
           git push
