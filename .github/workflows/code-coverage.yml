@@ -52,13 +52,15 @@ jobs:
             else if (coverage < 80) print "yellow";
             else print "brightgreen";
           }')
-          BADGE_URL="https://img.shields.io/badge/Code_Coverage-$COVERAGE%25-$COLOR.svg?logo=github"
+          # URL encode the coverage value and remove % from the input
+          COVERAGE_CLEAN=$(echo $COVERAGE | sed 's/%//')
+          BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE_CLEAN}%25-${COLOR}"
           echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
 
       - name: Download Badge as SVG
         run: |
           mkdir -p .github/badges
-          curl -o .github/badges/code_coverage.svg "$BADGE_URL"
+          curl -L -o .github/badges/code_coverage.svg "$BADGE_URL"
 
       - name: Commit Badge to Repository
         run: |
