@@ -1,4 +1,4 @@
-name: Unit Test
+name: Test Coverage
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - src/**
       - tests/**
+  workflow_dispatch:
 
 jobs:
   test:
@@ -26,14 +27,54 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov httpx
+          pip install pytest pytest-asyncio httpx
 
-      - name: Run tests with coverage
-        id: coverage
+      - name: Run MarketScanner tests
+        run: python tests/test_market_scanner.py
+
+      - name: Run Scanner API tests
+        run: python tests/test_scanner_api.py
+
+      - name: Summarize Test Results
+        id: test_results
         run: |
-          pytest tests/ -v --cov=src \
-          --cov-report=html \
-          --cov-report=term-missing \
-          | tee pytest_output.txt
-          coverage=$(grep "TOTAL" pytest_output.txt | awk '{print $4}')
-          echo "coverage_percentage=$coverage" >> $GITHUB_OUTPUT
+          # Count the total number of tests
+          TOTAL_TESTS=$(pytest tests/ --collect-only -q | wc -l)
+          echo "Total Tests: $TOTAL_TESTS"
+
+          # Count the number of passed tests
+          PASSED_TESTS=$(pytest tests/ -q | grep -c "PASSED")
+          echo "Passed Tests: $PASSED_TESTS"
+
+          # Calculate the percentage of passed tests
+          if [ "$TOTAL_TESTS" -gt 0 ]; then
+            PASS_PERCENTAGE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
+          else
+            PASS_PERCENTAGE=0
+          fi
+          echo "Pass Percentage: $PASS_PERCENTAGE%"
+
+          # Output the results
+          echo "TEST_RESULTS=Total Tests: $TOTAL_TESTS, Passed Tests: $PASSED_TESTS, Pass Percentage: $PASS_PERCENTAGE%" >> $GITHUB_ENV
+
+      - name: Generate Test Coverage Badge
+        run: |
+          PASS_PERCENTAGE=$(echo "$TEST_RESULTS" | grep -oP 'Pass Percentage: \K\d+')
+          COLOR=$(awk -v pass_percentage=$PASS_PERCENTAGE 'BEGIN {
+            if (pass_percentage < 50) print "red";
+            else if (pass_percentage < 80) print "yellow";
+            else print "brightgreen";
+          }')
+          BADGE_URL="https://img.shields.io/badge/Test_Coverage-$PASS_PERCENTAGE%25-$COLOR?logo=github"
+          echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
+
+      - name: Commit Badge to .github Folder
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull
+          mkdir -p .github/badges
+          echo "![Test Coverage]($BADGE_URL)" > .github/badges/test_coverage_badge.md
+          git add .github/badges/test_coverage_badge.md
+          git commit -m "Update test coverage badge in .github folder"
+          git push

@@ -1,6 +1,9 @@
 # Algorithmic Trading System
 
 A comprehensive algorithmic trading system that integrates market scanning, technical analysis, and automated trading strategies using Interactive Brokers and Yahoo Finance data providers.
+[![Build and Push Container](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml)
+![Code Coverage](.github/badges/code_coverage_badge.md)
+![Test Coverage](.github/badges/test_coverage_badge.md)
 
 - [Algorithmic Trading System](#algorithmic-trading-system)
   - [Features](#features)
