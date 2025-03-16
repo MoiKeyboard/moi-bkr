@@ -44,17 +44,22 @@ jobs:
           coverage=$(grep "TOTAL" pytest_output.txt | awk '{print $4}')
           echo "coverage_percentage=$coverage" >> $GITHUB_OUTPUT
 
+      - name: Get Workflow Run URL
+        id: workflow_url
+        run: |
+          WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "WORKFLOW_URL=$WORKFLOW_URL" >> $GITHUB_ENV
+          echo "Workflow Run URL: $WORKFLOW_URL"
+
       - name: Generate Coverage Badge URL
         run: |
-          COVERAGE=${{ steps.coverage.outputs.coverage_percentage }}
+          COVERAGE=$(echo ${{ steps.coverage.outputs.coverage_percentage }} | sed 's/%//')
           COLOR=$(awk -v coverage=$COVERAGE 'BEGIN {
             if (coverage < 50) print "red";
             else if (coverage < 80) print "yellow";
             else print "brightgreen";
           }')
-          # URL encode the coverage value and remove % from the input
-          COVERAGE_CLEAN=$(echo $COVERAGE | sed 's/%//')
-          BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE_CLEAN}%25-${COLOR}"
+          BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}?link=${{ env.WORKFLOW_URL }}"
           echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
 
       - name: Download Badge as SVG

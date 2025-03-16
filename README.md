@@ -4,7 +4,7 @@ A comprehensive algorithmic trading system that integrates market scanning, tech
 
 | **Build Status** | **Code Coverage** | **Test Coverage** |
 |------------------|-------------------|-------------------|
-| ![Build Status](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml/badge.svg) | ![Code Coverage](https://github.com/MoiKeyboard/moi-bkr/blob/main/.github/badges/code_coverage.svg) | ![Test Coverage](.github/badges/test_coverage.svg) |
+| ![Build Status](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml/badge.svg) | ![Code Coverage](.github/badges/code_coverage.svg) | ![Test Coverage](.github/badges/test_coverage.svg) |
 
 - [Algorithmic Trading System](#algorithmic-trading-system)
   - [Features](#features)
