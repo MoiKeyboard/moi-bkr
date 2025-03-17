@@ -5,6 +5,14 @@ services:
     build: .
     container_name: market-scanner
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"  # Enable Traefik routing for market-scanner
+      # Basic router configuration
+      - "traefik.http.routers.market-scanner.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.market-scanner.loadbalancer.server.port=8000"
+      # Configure and attach the strip-prefix middleware
+      - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
+      - "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker"
     environment:
       - ENV_MODE=prod
       - PORT=8000
@@ -23,18 +31,22 @@ services:
 
   # Traefik reverse proxy service
   reverse-proxy:
-    image: traefik:v3.3  # Official Traefik v3.3 image
+    image: traefik:v3.3
     container_name: traefik
     command:
       - "--api.insecure=true"      # Enable Traefik dashboard without auth (development only)
       - "--providers.docker=true"   # Enable Docker provider to detect services
       - "--providers.docker.exposedbydefault=false"  # Don't expose containers by default
-      - "--entrypoints.web.address=:80"  # Define HTTP entrypoint
+      - "--entrypoints.web.address=:80"  # HTTP entrypoint
+      - "--entrypoints.websecure.address=:443" # HTTPS entrypoint
+     # Add debug logging
+      - "--log.level=DEBUG"
     ports:
-      - "80:80"      # HTTP port for incoming traffic
-      - "8080:8080"  # Traefik dashboard port
+      - "80:80"      # HTTP
+      - "443:443"  # HTTPS (for production)
+      - "8080:8080"  # Dashboard
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket for service discovery (read-only)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - trading-network
 
