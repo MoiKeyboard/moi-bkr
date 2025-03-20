@@ -180,5 +180,11 @@ cython_debug/
 # .*
 # !.github/
 
-# Ignore private keys
+# Ignore certificates private keys
 *.key
+*.crt
+*.csr
+*.pem
+*.der
+*.p12
+*.pfx
