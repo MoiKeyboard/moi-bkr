@@ -12,6 +12,7 @@ services:
       - "traefik.http.routers.market-scanner.rule=Host(`api.localhost`) && PathPrefix(`/api`)"
       - "traefik.http.routers.market-scanner.entrypoints=web,websecure"
       - "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker"
+      - "traefik.http.routers.market-scanner.tls=true"
       # Service configuration
       - "traefik.http.services.market-scanner.loadbalancer.server.port=8000"
       # Middleware configuration
@@ -36,31 +37,35 @@ services:
   reverse-proxy:
     image: traefik:v3.3
     container_name: traefik
+    # Static configuration
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--log.level=DEBUG"
     ports:
       - "80:80" # HTTP
       - "443:443" # HTTPS
       - "8080:8080" # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro # Docker socket
-      # - ./certs:/certs:ro # Certificates
+      - ./certs:/certs:ro # Certificates
       # - ./traefik.yml:/etc/traefik/traefik.yml:ro  # traefik config file
     networks:
       - trading-network
+    # Dynamic Configuration
     labels:
       # Core configuration
       - "traefik.enable=true"
-      # Dashboard configuration
+      # Router configuration
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.entrypoints=web,websecure"
       - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
       - "traefik.http.routers.traefik.service=api@internal"
-      # Add only logging
-      - "traefik.log.level=DEBUG"
-      - "traefik.accesslog=true"
-
+      # TLS Configuration
+      - "traefik.tls.certificates.certfile=/certs/wildcard.crt"
+      - "traefik.tls.certificates.keyfile=/certs/wildcard.key"
   # Test service to verify Traefik routing
   whoami:
     image: traefik/whoami  # Simple test container that shows request info

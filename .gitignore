@@ -181,4 +181,4 @@ cython_debug/
 # !.github/
 
 # Ignore private keys
-.key
+*.key
