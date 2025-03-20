@@ -179,3 +179,6 @@ cython_debug/
 # Ignore all dot files except .github
 # .*
 # !.github/
+
+# Ignore private keys
+.key
