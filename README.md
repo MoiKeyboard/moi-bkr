@@ -135,6 +135,21 @@ market_analysis:
     # Add more tickers...
 ```
 
+3. Generate self-signed certificates (optional for HTTPS)
+```powershell
+# Step 1: Generate private key
+docker run --rm -v ${PWD}/certs:/certs alpine/openssl genrsa -out /certs/wildcard.key 2048
+
+# Step 2: Generate certificate using the key
+docker run --rm -v ${PWD}/certs:/certs alpine/openssl req `
+    -x509 `
+    -nodes `
+    -days 365 `
+    -key /certs/wildcard.key `
+    -out /certs/wildcard.crt `
+    -config /certs/openssl.conf
+```
+
 ## Data Provider Setup
 
 ###  IBKR Trade Workstation settings
