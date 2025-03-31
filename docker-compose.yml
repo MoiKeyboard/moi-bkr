@@ -9,12 +9,19 @@ services:
       # Router configuration
       - "traefik.http.routers.market-scanner.rule=Host(`api.localhost`) && PathPrefix(`/api`)"
       - "traefik.http.routers.market-scanner.entrypoints=web,websecure"
-      - "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker"
+      - "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker,security-headers@docker"
       - "traefik.http.routers.market-scanner.tls=true"
       # Service configuration
       - "traefik.http.services.market-scanner.loadbalancer.server.port=8000"
       # Middleware configuration
       - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
+      - "traefik.http.middlewares.security-headers.headers.sslRedirect=true" # redirect http to https
+      - "traefik.http.middlewares.security-headers.headers.forceSTSHeader=true" # force sts header
+      - "traefik.http.middlewares.security-headers.headers.frameDeny=true" # prevent clickjacking
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true" # prevent mime type sniffing
+      - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true" # prevent xss
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin" # prevent referrer leakage
+      
     environment:
       - ENV_MODE=prod
       - PORT=8000
@@ -69,19 +76,16 @@ services:
       - "traefik.http.routers.traefik.entrypoints=web,websecure"
       - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
       - "traefik.http.routers.traefik.service=api@internal"
-      # # TLS Configuration
-      # - "traefik.tls.certificates.certfile=/certs/wildcard.crt"
-      # - "traefik.tls.certificates.keyfile=/certs/wildcard.key"
   # Test service to verify Traefik routing
-  whoami:
-    image: traefik/whoami  # Simple test container that shows request info
-    container_name: whoami
-    labels:
-      - "traefik.enable=true"  # Enable Traefik for this container
-      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"  # Route requests for whoami.localhost
-      - "traefik.http.services.whoami.loadbalancer.server.port=80"   # Container port to route to
-    networks:
-      - trading-network
+  # whoami:
+  #   image: traefik/whoami  # Simple test container that shows request info
+  #   container_name: whoami
+  #   labels:
+  #     - "traefik.enable=true"  # Enable Traefik for this container
+  #     - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"  # Route requests for whoami.localhost
+  #     - "traefik.http.services.whoami.loadbalancer.server.port=80"   # Container port to route to
+  #   networks:
+  #     - trading-network
 
 # Shared network for all services
 networks:
