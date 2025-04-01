@@ -65,7 +65,6 @@ jobs:
           # Start Traefik container with configuration matching docker-compose.yml
           docker run -d \
             --name traefik \
-            --name market-scanner \
             --network trading-network \
             -p 80:80 -p 443:443 -p 8080:8080 \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
