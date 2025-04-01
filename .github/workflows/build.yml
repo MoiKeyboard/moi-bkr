@@ -63,7 +63,8 @@ jobs:
             -addext "subjectAltName=DNS:*.localhost,DNS:localhost"
 
           # Start Traefik container with configuration matching docker-compose.yml
-          docker run -d --name traefik \
+          docker run -d \
+            --name traefik \
             traefik:v3.3 \
             --network trading-network \
             -p 80:80 -p 443:443 -p 8080:8080 \
@@ -82,10 +83,11 @@ jobs:
             --label "traefik.http.routers.traefik.tls=true" \
             --label "traefik.http.routers.traefik.entrypoints=web,websecure" \
             --label "traefik.http.routers.traefik.rule=Host(\`traefik.localhost\`)" \
-            --label "traefik.http.routers.traefik.service=api@internal" \
+            --label "traefik.http.routers.traefik.service=api@internal"
 
           # Start market scanner container with configuration matching docker-compose.yml
-          docker run -d --name market-scanner \
+          docker run -d \
+            --name market-scanner \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} \
             --network trading-network \
             -e ENV_MODE=prod \
