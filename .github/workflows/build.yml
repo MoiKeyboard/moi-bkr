@@ -65,7 +65,7 @@ jobs:
           # Start Traefik container with configuration matching docker-compose.yml
           docker run -d \
             --name traefik \
-            traefik:v3.3 \
+            --name market-scanner \
             --network trading-network \
             -p 80:80 -p 443:443 -p 8080:8080 \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
@@ -83,12 +83,12 @@ jobs:
             --label "traefik.http.routers.traefik.tls=true" \
             --label "traefik.http.routers.traefik.entrypoints=web,websecure" \
             --label "traefik.http.routers.traefik.rule=Host(\`traefik.localhost\`)" \
-            --label "traefik.http.routers.traefik.service=api@internal"
+            --label "traefik.http.routers.traefik.service=api@internal" \
+            traefik:v3.3
 
           # Start market scanner container with configuration matching docker-compose.yml
           docker run -d \
             --name market-scanner \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} \
             --network trading-network \
             -e ENV_MODE=prod \
             -e PORT=8000 \
@@ -105,7 +105,8 @@ jobs:
             --label "traefik.http.middlewares.security-headers.headers.frameDeny=true" \
             --label "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true" \
             --label "traefik.http.middlewares.security-headers.headers.browserXssFilter=true" \
-            --label "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+            --label "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin" \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}
           
           # Wait for services to be ready
           sleep 10
