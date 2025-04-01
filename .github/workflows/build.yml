@@ -52,20 +52,79 @@ jobs:
 
       - name: Test container
         run: |
-          # Pull and test the image
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} python --version
-          
-          # Run container with health check
-          docker run -d --name test-container \
-            -p 8000:8000 \
+          # Create test network
+          docker network create trading-network
+
+          # Create test certificates directory and generate certs
+          mkdir -p certs
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout certs/wildcard.key -out certs/wildcard.crt \
+            -subj "/CN=*.localhost" \
+            -addext "subjectAltName=DNS:*.localhost,DNS:localhost"
+
+          # Start Traefik container with configuration matching docker-compose.yml
+          docker run -d --name traefik \
+            traefik:v3.3 \
+            --network trading-network \
+            -p 80:80 -p 443:443 -p 8080:8080 \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            -v ${{ github.workspace }}/certs:/certs:ro \
+            -e TRAEFIK_LOG_LEVEL=DEBUG \
+            -e TRAEFIK_ACCESSLOG=true \
+            -e TRAEFIK_API_INSECURE=true \
+            -e TRAEFIK_PROVIDERS_DOCKER=true \
+            -e TRAEFIK_ENTRYPOINTS_WEB_ADDRESS=:80 \
+            -e TRAEFIK_ENTRYPOINTS_WEBSECURE_ADDRESS=:443 \
+            -e TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_TLS=true \
+            -e TRAEFIK_TLS_STORES_DEFAULT_DEFAULTCERTIFICATE_CERTFILE=/certs/wildcard.crt \
+            -e TRAEFIK_TLS_STORES_DEFAULT_DEFAULTCERTIFICATE_KEYFILE=/certs/wildcard.key \
+            --label "traefik.enable=true" \
+            --label "traefik.http.routers.traefik.tls=true" \
+            --label "traefik.http.routers.traefik.entrypoints=web,websecure" \
+            --label "traefik.http.routers.traefik.rule=Host(\`traefik.localhost\`)" \
+            --label "traefik.http.routers.traefik.service=api@internal" \
+
+          # Start market scanner container with configuration matching docker-compose.yml
+          docker run -d --name market-scanner \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }} \
+            --network trading-network \
             -e ENV_MODE=prod \
             -e PORT=8000 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}
+            -v ${{ github.workspace }}/config.yaml:/app/config.yaml \
+            --label "traefik.enable=true" \
+            --label "traefik.http.routers.market-scanner.rule=Host(\`api.localhost\`) && PathPrefix(\`/api\`)" \
+            --label "traefik.http.routers.market-scanner.entrypoints=web,websecure" \
+            --label "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker,security-headers@docker" \
+            --label "traefik.http.routers.market-scanner.tls=true" \
+            --label "traefik.http.services.market-scanner.loadbalancer.server.port=8000" \
+            --label "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api" \
+            --label "traefik.http.middlewares.security-headers.headers.sslRedirect=true" \
+            --label "traefik.http.middlewares.security-headers.headers.forceSTSHeader=true" \
+            --label "traefik.http.middlewares.security-headers.headers.frameDeny=true" \
+            --label "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true" \
+            --label "traefik.http.middlewares.security-headers.headers.browserXssFilter=true" \
+            --label "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
           
-          # Wait for health check and verify
-          timeout 30s bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8000/health)" != "200" ]]; do sleep 2; done' || false
-          curl -f http://localhost:8000/health
+          # Wait for services to be ready
+          sleep 10
+
+          # Test Traefik is running
+          echo "Testing Traefik dashboard..."
+          curl -k -f https://traefik.localhost/dashboard/
+
+          # Test market-scanner through Traefik
+          echo "Testing market-scanner health endpoint through Traefik..."
+          curl -k -f https://api.localhost/api/health
+          
+          echo "Testing market-scanner scan endpoint through Traefik..."
+          curl -k -f -X POST https://api.localhost/api/scan
+
+          # Test direct health endpoint
+          echo "Testing direct health endpoint..."
+          curl -f http://market-scanner:8000/health
           
           # Clean up
-          docker stop test-container
-          docker rm test-container
+          docker stop market-scanner traefik
+          docker rm market-scanner traefik
+          docker network rm trading-network
+          rm -rf certs
