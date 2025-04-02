@@ -22,6 +22,9 @@ jobs:
       - name: Set image name
         run: echo "IMAGE_NAME=$(echo ${{ github.repository }}/market-scanner | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Load environment configuration
         run: |
           # Load environment settings from config.yaml
@@ -35,9 +38,6 @@ jobs:
           echo "DOMAIN=$DOMAIN" >> $GITHUB_ENV
           echo "PORT=$PORT" >> $GITHUB_ENV
           echo "LOG_LEVEL=$LOG_LEVEL" >> $GITHUB_ENV
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
