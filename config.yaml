@@ -30,7 +30,7 @@ environment:
     env_mode: dev
     log_level: debug
   production:
-    domain: yourdomain.com
+    domain: localhost
     port: 8000
     env_mode: prod
     log_level: info
