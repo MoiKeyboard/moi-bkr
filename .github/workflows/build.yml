@@ -22,6 +22,20 @@ jobs:
       - name: Set image name
         run: echo "IMAGE_NAME=$(echo ${{ github.repository }}/market-scanner | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      - name: Load environment configuration
+        run: |
+          # Load environment settings from config.yaml
+          ENV_MODE=$(yq e '.environment.production.env_mode' config.yaml)
+          DOMAIN=$(yq e '.environment.production.domain' config.yaml)
+          PORT=$(yq e '.environment.production.port' config.yaml)
+          LOG_LEVEL=$(yq e '.environment.production.log_level' config.yaml)
+          
+          # Export for use in subsequent steps
+          echo "ENV_MODE=$ENV_MODE" >> $GITHUB_ENV
+          echo "DOMAIN=$DOMAIN" >> $GITHUB_ENV
+          echo "PORT=$PORT" >> $GITHUB_ENV
+          echo "LOG_LEVEL=$LOG_LEVEL" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -69,7 +83,7 @@ jobs:
             -p 80:80 -p 443:443 -p 8080:8080 \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
             -v ${{ github.workspace }}/certs:/certs:ro \
-            -e TRAEFIK_LOG_LEVEL=DEBUG \
+            -e TRAEFIK_LOG_LEVEL=${{ env.LOG_LEVEL }} \
             -e TRAEFIK_ACCESSLOG=true \
             -e TRAEFIK_API_INSECURE=true \
             -e TRAEFIK_PROVIDERS_DOCKER=true \
@@ -81,7 +95,7 @@ jobs:
             --label "traefik.enable=true" \
             --label "traefik.http.routers.traefik.tls=true" \
             --label "traefik.http.routers.traefik.entrypoints=web,websecure" \
-            --label "traefik.http.routers.traefik.rule=Host(\`traefik.localhost\`)" \
+            --label "traefik.http.routers.traefik.rule=Host(\`${{ env.DOMAIN }}\`)" \
             --label "traefik.http.routers.traefik.service=api@internal" \
             traefik:v3.3
 
@@ -89,11 +103,13 @@ jobs:
           docker run -d \
             --name market-scanner \
             --network trading-network \
-            -e ENV_MODE=prod \
-            -e PORT=8000 \
+            -e ENV_MODE=${{ env.ENV_MODE }} \
+            -e PORT=${{ env.PORT }} \
+            -e DOMAIN=${{ env.DOMAIN }} \
+            -e LOG_LEVEL=${{ env.LOG_LEVEL }} \
             -v ${{ github.workspace }}/config.yaml:/app/config.yaml \
             --label "traefik.enable=true" \
-            --label "traefik.http.routers.market-scanner.rule=Host(\`api.localhost\`) && PathPrefix(\`/api\`)" \
+            --label "traefik.http.routers.market-scanner.rule=Host(\`api.${{ env.DOMAIN }}\`) && PathPrefix(\`/api\`)" \
             --label "traefik.http.routers.market-scanner.entrypoints=web,websecure" \
             --label "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker,security-headers@docker" \
             --label "traefik.http.routers.market-scanner.tls=true" \
@@ -110,16 +126,32 @@ jobs:
           # Wait for services to be ready
           sleep 10
 
+          # Debug: Check container status
+          echo "Checking container status..."
+          docker ps -a
+
+          # Debug: Check Traefik logs
+          echo "Checking Traefik logs..."
+          docker logs traefik
+
+          # Debug: Check market-scanner logs
+          echo "Checking market-scanner logs..."
+          docker logs market-scanner
+
+          # Debug: Check Traefik configuration
+          echo "Checking Traefik configuration..."
+          curl -k https://localhost/api/rawdata
+
           # Test Traefik is running
           echo "Testing Traefik dashboard..."
-          curl -k -f https://traefik.localhost/dashboard/
+          curl -k -f https://localhost/dashboard/
 
           # Test market-scanner through Traefik
           echo "Testing market-scanner health endpoint through Traefik..."
-          curl -k -f https://api.localhost/api/health
+          curl -k -f https://localhost/api/health
           
           echo "Testing market-scanner scan endpoint through Traefik..."
-          curl -k -f -X POST https://api.localhost/api/scan
+          curl -k -f -X POST https://localhost/api/scan
 
           # Test direct health endpoint
           echo "Testing direct health endpoint..."

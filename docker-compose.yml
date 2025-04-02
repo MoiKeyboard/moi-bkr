@@ -23,10 +23,12 @@ services:
       - "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin" # prevent referrer leakage
       
     environment:
-      - ENV_MODE=prod
-      - PORT=8000
+      - ENV_MODE=${ENV_MODE:-dev}
+      - PORT=${PORT:-8000}
+      - DOMAIN=${DOMAIN:-localhost}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
     volumes:
       - ./.data:/app/.data
       - ./config.yaml:/app/config.yaml
@@ -45,7 +47,7 @@ services:
     # Static configuration
     environment:
       # Core configuration
-      - "TRAEFIK_LOG_LEVEL=DEBUG"
+      - "TRAEFIK_LOG_LEVEL=${LOG_LEVEL:-DEBUG}"
       - "TRAEFIK_ACCESSLOG=true"
       - "TRAEFIK_API_INSECURE=true"
       - "TRAEFIK_PROVIDERS_DOCKER=true"
@@ -57,6 +59,8 @@ services:
       # Default certificate configuration
       - "TRAEFIK_TLS_STORES_DEFAULT_DEFAULTCERTIFICATE_CERTFILE=/certs/wildcard.crt"
       - "TRAEFIK_TLS_STORES_DEFAULT_DEFAULTCERTIFICATE_KEYFILE=/certs/wildcard.key"
+      # Domain configuration
+      - "DOMAIN=${DOMAIN:-localhost}"
     ports:
       - "80:80" # HTTP
       - "443:443" # HTTPS
@@ -74,7 +78,7 @@ services:
       # Router configuration
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.entrypoints=web,websecure"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.rule=Host(`${DOMAIN:-localhost}`)"
       - "traefik.http.routers.traefik.service=api@internal"
   # Test service to verify Traefik routing
   # whoami:
