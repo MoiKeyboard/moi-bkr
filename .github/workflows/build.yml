@@ -147,15 +147,31 @@ jobs:
           echo "Testing direct market-scanner health endpoint..."
           curl -f http://$MARKET_SCANNER_IP:8000/health
 
+          # Debug: Check Traefik configuration
+          echo "Checking Traefik configuration..."
+          curl -k https://${{ env.DOMAIN }}/api/http/routers
+
+          # Debug: Check Traefik services
+          echo "Checking Traefik services..."
+          curl -k https://${{ env.DOMAIN }}/api/http/services
+
           # Test Traefik is running
           echo "Testing Traefik dashboard..."
           curl -k -f https://${{ env.DOMAIN }}/dashboard/
 
           # Test market-scanner through Traefik
           echo "Testing market-scanner health endpoint through Traefik..."
-          curl -k -f https://${{ env.DOMAIN }}/api/health
+          for i in {1..5}; do
+            if curl -k -f https://${{ env.DOMAIN }}/api/health; then
+              break
+            fi
+            echo "Attempt $i failed, retrying in 5 seconds..."
+            sleep 5
+          done
+
           echo "Testing market-scanner scan endpoint through Traefik..."
           curl -k -f -X POST https://${{ env.DOMAIN }}/api/scan
+
           echo "Testing market-scanner trending endpoint through Traefik..."
           curl -k -f https://${{ env.DOMAIN }}/api/trending
           
