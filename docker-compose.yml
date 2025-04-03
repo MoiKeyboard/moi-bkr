@@ -7,7 +7,7 @@ services:
       # Core configuration
       - "traefik.enable=true"
       # Router configuration
-      - "traefik.http.routers.market-scanner.rule=Host(`api.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.market-scanner.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.market-scanner.entrypoints=web,websecure"
       - "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker,security-headers@docker"
       - "traefik.http.routers.market-scanner.tls=true"

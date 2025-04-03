@@ -109,7 +109,7 @@ jobs:
             -e LOG_LEVEL=${{ env.LOG_LEVEL }} \
             -v ${{ github.workspace }}/config.yaml:/app/config.yaml \
             --label "traefik.enable=true" \
-            --label "traefik.http.routers.market-scanner.rule=Host(\`api.${{ env.DOMAIN }}\`) && PathPrefix(\`/api\`)" \
+            --label "traefik.http.routers.market-scanner.rule=Host(\`${{ env.DOMAIN }}\`) && PathPrefix(\`/api\`)" \
             --label "traefik.http.routers.market-scanner.entrypoints=web,websecure" \
             --label "traefik.http.routers.market-scanner.middlewares=strip-api-prefix@docker,security-headers@docker" \
             --label "traefik.http.routers.market-scanner.tls=true" \
@@ -138,24 +138,17 @@ jobs:
           echo "Checking market-scanner logs..."
           docker logs market-scanner
 
-          # Debug: Check Traefik configuration
-          echo "Checking Traefik configuration..."
-          curl -k https://localhost/api/rawdata
-
           # Test Traefik is running
           echo "Testing Traefik dashboard..."
-          curl -k -f https://localhost/dashboard/
+          curl -k -f https://${{ env.DOMAIN }}/dashboard/
 
           # Test market-scanner through Traefik
           echo "Testing market-scanner health endpoint through Traefik..."
-          curl -k -f https://localhost/api/health
-          
+          curl -k -f https://${{ env.DOMAIN }}/api/health
           echo "Testing market-scanner scan endpoint through Traefik..."
-          curl -k -f -X POST https://localhost/api/scan
-
-          # Test direct health endpoint
-          echo "Testing direct health endpoint..."
-          curl -f http://market-scanner:8000/health
+          curl -k -f -X POST https://${{ env.DOMAIN }}/api/scan
+          echo "Testing market-scanner trending endpoint through Traefik..."
+          curl -k -f https://${{ env.DOMAIN }}/api/trending
           
           # Clean up
           docker stop market-scanner traefik
