@@ -131,7 +131,7 @@ jobs:
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.State}}"
             echo "----------------------------------------"
             
-            if docker ps --format "{{.State}}" | grep -v "Up" | wc -l | grep -q "0"; then
+            if docker ps --format "{{.State}}" | grep -v "running" | wc -l | grep -q "0"; then
               echo "All containers are Up and running"
               break
             fi
