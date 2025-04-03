@@ -138,6 +138,15 @@ jobs:
           echo "Checking market-scanner logs..."
           docker logs market-scanner
 
+          # Debug: Get market-scanner container IP
+          echo "Getting market-scanner container IP..."
+          MARKET_SCANNER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' market-scanner)
+          echo "Market-scanner IP: $MARKET_SCANNER_IP"
+
+          # Debug: Check if market-scanner is responding directly
+          echo "Testing direct market-scanner health endpoint..."
+          curl -f http://$MARKET_SCANNER_IP:8000/health
+
           # Test Traefik is running
           echo "Testing Traefik dashboard..."
           curl -k -f https://${{ env.DOMAIN }}/dashboard/
