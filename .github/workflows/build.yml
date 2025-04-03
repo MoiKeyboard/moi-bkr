@@ -124,7 +124,19 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}
           
           # Wait for services to be ready
-          sleep 10
+          echo "Waiting for all containers to be ready..."
+          for i in {1..30}; do
+            echo "Attempt $i: Checking container status..."
+            echo "----------------------------------------"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.State}}"
+            echo "----------------------------------------"
+            
+            if docker ps --format "{{.State}}" | grep -v "Up" | wc -l | grep -q "0"; then
+              echo "All containers are Up and running"
+              break
+            fi
+            sleep 2
+          done
 
           # Debug: Check container status
           echo "Checking container status..."
@@ -138,36 +150,13 @@ jobs:
           echo "Checking market-scanner logs..."
           docker logs market-scanner
 
-          # Debug: Get market-scanner container IP
-          echo "Getting market-scanner container IP..."
-          MARKET_SCANNER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' market-scanner)
-          echo "Market-scanner IP: $MARKET_SCANNER_IP"
-
-          # Debug: Check if market-scanner is responding directly
-          echo "Testing direct market-scanner health endpoint..."
-          curl -f http://$MARKET_SCANNER_IP:8000/health
-
-          # Debug: Check Traefik configuration
-          echo "Checking Traefik configuration..."
-          curl -k https://${{ env.DOMAIN }}/api/http/routers
-
-          # Debug: Check Traefik services
-          echo "Checking Traefik services..."
-          curl -k https://${{ env.DOMAIN }}/api/http/services
-
           # Test Traefik is running
           echo "Testing Traefik dashboard..."
           curl -k -f https://${{ env.DOMAIN }}/dashboard/
 
           # Test market-scanner through Traefik
           echo "Testing market-scanner health endpoint through Traefik..."
-          for i in {1..5}; do
-            if curl -k -f https://${{ env.DOMAIN }}/api/health; then
-              break
-            fi
-            echo "Attempt $i failed, retrying in 5 seconds..."
-            sleep 5
-          done
+          curl -k -f https://${{ env.DOMAIN }}/api/health
 
           echo "Testing market-scanner scan endpoint through Traefik..."
           curl -k -f -X POST https://${{ env.DOMAIN }}/api/scan
