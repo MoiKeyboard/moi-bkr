@@ -95,7 +95,7 @@ jobs:
             --label "traefik.enable=true" \
             --label "traefik.http.routers.traefik.tls=true" \
             --label "traefik.http.routers.traefik.entrypoints=web,websecure" \
-            --label "traefik.http.routers.traefik.rule=Host(\`${{ env.DOMAIN }}\`) && PathPrefix(`/dashboard`)" \
+            --label "traefik.http.routers.traefik.rule=Host(\`${{ env.DOMAIN }}\`) && PathPrefix(\`/dashboard\`)" \
             --label "traefik.http.routers.traefik.service=api@internal" \
             traefik:v3.3
 
