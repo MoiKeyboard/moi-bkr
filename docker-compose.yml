@@ -78,7 +78,7 @@ services:
       # Router configuration
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.entrypoints=web,websecure"
-      - "traefik.http.routers.traefik.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.traefik.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/dashboard`)"
       - "traefik.http.routers.traefik.service=api@internal"
   # Test service to verify Traefik routing
   # whoami:
