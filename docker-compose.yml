@@ -1,6 +1,8 @@
 services:
   market-scanner:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: market-scanner
     restart: unless-stopped
     labels:
@@ -40,6 +42,36 @@ services:
     networks:
       - trading-network
 
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: telegram-bot
+    restart: unless-stopped
+    labels:
+      # Core configuration
+      - "traefik.enable=true"
+      # Router configuration
+      - "traefik.http.routers.telegram-bot.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/bot`)"
+      - "traefik.http.routers.telegram-bot.entrypoints=web,websecure"
+      - "traefik.http.routers.telegram-bot.middlewares=strip-bot-prefix@docker,security-headers@docker"
+      - "traefik.http.routers.telegram-bot.tls=true"
+      # Service configuration
+      - "traefik.http.services.telegram-bot.loadbalancer.server.port=8001"
+      # Middleware configuration
+      - "traefik.http.middlewares.strip-bot-prefix.stripprefix.prefixes=/bot"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-your_webhook_secret}
+      - TELEGRAM_ALLOWED_USERS=${TELEGRAM_ALLOWED_USERS:-123456789,987654321}
+      - MARKET_API_URL=https://${DOMAIN}/api
+    ports:
+      - "8001:8000"
+    networks:
+      - trading-network
+    depends_on:
+      - market-scanner
+
   # Traefik reverse proxy service
   reverse-proxy:
     image: traefik:v3.3
@@ -51,6 +83,7 @@ services:
       - "TRAEFIK_ACCESSLOG=true"
       - "TRAEFIK_API_INSECURE=true"
       - "TRAEFIK_PROVIDERS_DOCKER=true"
+      - "TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT=false"
       # Entrypoints
       - "TRAEFIK_ENTRYPOINTS_WEB_ADDRESS=:80"
       - "TRAEFIK_ENTRYPOINTS_WEBSECURE_ADDRESS=:443"
@@ -78,19 +111,8 @@ services:
       # Router configuration
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.entrypoints=web,websecure"
-      - "traefik.http.routers.traefik.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/dashboard`)"
+      - "traefik.http.routers.traefik.rule=Host(`${DOMAIN:-localhost}`)"
       - "traefik.http.routers.traefik.service=api@internal"
-  # Test service to verify Traefik routing
-  # whoami:
-  #   image: traefik/whoami  # Simple test container that shows request info
-  #   container_name: whoami
-  #   labels:
-  #     - "traefik.enable=true"  # Enable Traefik for this container
-  #     - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"  # Route requests for whoami.localhost
-  #     - "traefik.http.services.whoami.loadbalancer.server.port=80"   # Container port to route to
-  #   networks:
-  #     - trading-network
-
 # Shared network for all services
 networks:
   trading-network:

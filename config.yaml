@@ -30,7 +30,31 @@ environment:
     env_mode: dev
     log_level: debug
   production:
-    domain: localhost
+    domain: ${DOMAIN}  # Will be set via environment variable
     port: 8000
     env_mode: prod
     log_level: info
+
+bot_gateway:
+  development:
+    domain: localhost
+    port: 8001
+    env_mode: dev
+    log_level: debug
+  production:
+    domain: ${DOMAIN}
+    port: 8001
+    env_mode: prod
+    log_level: info
+  telegram:
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    webhook_secret: ${TELEGRAM_WEBHOOK_SECRET}
+    allowed_users:
+      - ${TELEGRAM_ADMIN_ID}
+    rate_limit:
+      requests_per_minute: 60
+  security:
+    api_key: ${MARKET_API_KEY}
+    tls_verify: true
+    allowed_hosts:
+      - ${DOMAIN}

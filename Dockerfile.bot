@@ -1,0 +1,24 @@
+FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PORT=8000
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional dependencies for the bot
+RUN pip install --no-cache-dir httpx
+
+# Copy bot code
+COPY src/bot_gateway /app/bot_gateway
+
+# Expose port
+EXPOSE 8000
+
+# Run the bot
+CMD ["uvicorn", "bot_gateway.app:app", "--host", "0.0.0.0", "--port", "8000"] 
