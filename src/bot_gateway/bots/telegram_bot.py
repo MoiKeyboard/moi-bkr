@@ -4,15 +4,16 @@ from typing import Dict, Any, List, Optional
 from .base_bot import BotPlatform, BotCommand, BotResponse
 from ..market_client import MarketClient
 
+
 class TelegramBot(BotPlatform):
     """Telegram bot implementation"""
-    
+
     def __init__(
         self,
         webhook_secret: str,
         allowed_users: List[str],
         market_api_url: str,
-        logger: Optional[logging.Logger] = None
+        logger: Optional[logging.Logger] = None,
     ):
         """
         Initialize Telegram bot
@@ -25,20 +26,17 @@ class TelegramBot(BotPlatform):
         self.webhook_secret = webhook_secret
         self.allowed_users = set(allowed_users)
         self.logger = logger or logging.getLogger(__name__)
-        
+
         # Initialize market client
         self.logger.info(f"Initializing MarketClient with URL: {market_api_url}")
-        self.market_client = MarketClient(
-            base_url=market_api_url,
-            logger=self.logger
-        )
-        
+        self.market_client = MarketClient(base_url=market_api_url, logger=self.logger)
+
         # Command mapping
         self.commands = {
             "/scan": self._handle_scan,
             "/trending": self._handle_trending,
             "/health": self._handle_health,
-            "/help": self._handle_help
+            "/help": self._handle_help,
         }
 
     async def verify_webhook(self, request: Dict[str, Any]) -> bool:
@@ -51,11 +49,11 @@ class TelegramBot(BotPlatform):
         """
         headers = request.get("headers", {})
         token = headers.get("X-Telegram-Bot-Api-Secret-Token")
-        
+
         if not token:
             self.logger.warning("Missing webhook secret token")
             return False
-            
+
         return hmac.compare_digest(token, self.webhook_secret)
 
     async def parse_command(self, update: Dict[str, Any]) -> BotCommand:
@@ -71,12 +69,12 @@ class TelegramBot(BotPlatform):
             text = message.get("text", "").split()
             command = text[0] if text else ""
             args = " ".join(text[1:]) if len(text) > 1 else None
-            
+
             return BotCommand(
                 command=command,
                 user_id=str(message.get("from", {}).get("id")),
                 chat_id=str(message.get("chat", {}).get("id")),
-                args=args
+                args=args,
             )
         except Exception as e:
             self.logger.error(f"Error parsing command: {e}")
@@ -92,16 +90,16 @@ class TelegramBot(BotPlatform):
         """
         if not response.success:
             return f"❌ Error: {response.message}"
-            
+
         if not response.data:
             return f"✅ {response.message}"
-            
+
         # Format based on command type
         if "trending" in response.data:
             return self._format_trending_response(response.data)
         elif "scan" in response.data:
             return self._format_scan_response(response.data)
-        
+
         return f"✅ {response.message}\n{response.data}"
 
     async def is_user_authorized(self, user_id: str) -> bool:
@@ -122,7 +120,7 @@ class TelegramBot(BotPlatform):
         stocks = data.get("trending", [])
         if not stocks:
             return "No trending stocks found"
-            
+
         response = "📈 Trending Stocks:\n\n"
         for stock in stocks:
             response += (
@@ -149,7 +147,7 @@ class TelegramBot(BotPlatform):
         return BotResponse(
             success=result.get("status") == "success",
             message="Market scan completed",
-            data=result.get("data")
+            data=result.get("data"),
         )
 
     async def _handle_trending(self, command: BotCommand) -> BotResponse:
@@ -159,7 +157,7 @@ class TelegramBot(BotPlatform):
         return BotResponse(
             success=result.get("status") == "success",
             message="Retrieved trending stocks",
-            data=result.get("data")
+            data=result.get("data"),
         )
 
     async def _handle_health(self, command: BotCommand) -> BotResponse:
@@ -169,7 +167,7 @@ class TelegramBot(BotPlatform):
         return BotResponse(
             success=result.get("status") == "success",
             message="Health check completed",
-            data=result
+            data=result,
         )
 
     async def _handle_help(self, command: BotCommand) -> BotResponse:
@@ -180,11 +178,7 @@ class TelegramBot(BotPlatform):
                 "/scan": "Trigger a market scan",
                 "/trending": "Get trending stocks",
                 "/health": "Check system health",
-                "/help": "Show this help message"
+                "/help": "Show this help message",
             }
         }
-        return BotResponse(
-            success=True,
-            message="Available commands",
-            data=help_text
-        ) 
+        return BotResponse(success=True, message="Available commands", data=help_text)
