@@ -29,9 +29,9 @@ Create a `.env` file in the project root:
 
 ```env
 # Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
-TELEGRAM_WEBHOOK_SECRET=your_webhook_secret
-TELEGRAM_ADMIN_ID=your_numeric_user_id
+TELEGRAM_BOT_TOKEN=<your_bot_token_from_botfather>
+TELEGRAM_WEBHOOK_SECRET=<your_webhook_secret>
+TELEGRAM_ADMIN_ID=<your_numeric_user_id>
 
 # Market Scanner API Configuration
 MARKET_API_URL=http://localhost:8000
@@ -47,35 +47,52 @@ DOMAIN=localhost
 2. Sign up for a free ngrok account
 3. Set up your authtoken:
    ```bash
-   ngrok config add-authtoken your_ngrok_authtoken
+   ngrok config add-authtoken <your_ngrok_authtoken>
    ```
 
 #### Start Services
 
-1. Start the services:
+1. Load environment variables:
+   ```bash
+   # Export all variables from .env file (excluding comments)
+   export $(cat .env | grep -v '^#' | xargs)
+   
+   # Verify variables are loaded
+   echo $TELEGRAM_BOT_TOKEN
+   echo $TELEGRAM_ADMIN_ID
+   ```
+
+2. Start the services:
    ```bash
    docker-compose up -d
    ```
 
-2. Start ngrok tunnel:
+3. Start ngrok tunnel:
    ```bash
    ngrok http 443
    ```
    Save the generated URL (e.g., `https://xxxx-xx-xx-xxx-xx.ngrok-free.app`)
 
-3. Set up webhook with Telegram:
+4. Set up webhook with Telegram:
    ```bash
-   # Check current webhook status
+   # Method 1: Using direct token (recommended for testing)
+   # Replace YOUR_BOT_TOKEN with actual token, avoiding URL encoding issues
    curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
+   # Method 2: Using environment variable with URL encoding
+   BOT_TOKEN_ENCODED=$(echo $TELEGRAM_BOT_TOKEN | sed 's/:/\\:/g')
+   curl "https://api.telegram.org/bot${BOT_TOKEN_ENCODED}/getWebhookInfo"
+
    # Set new webhook
-   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
+   curl "https://api.telegram.org/bot${BOT_TOKEN_ENCODED}/setWebhook" \
    -H "Content-Type: application/json" \
    -d '{
-       "url": "https://your-ngrok-url/bot/webhook",
-       "secret_token": "your_webhook_secret"
+       "url": "https://<your-ngrok-url>/bot/webhook",
+       "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"
    }'
    ```
+
+   Note: Using the token directly in the URL avoids encoding issues that can occur with environment variables.
 
 ### 5. Testing
 
