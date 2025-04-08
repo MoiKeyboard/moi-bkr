@@ -6,8 +6,7 @@ from .bots.telegram_bot import TelegramBot
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -24,13 +23,15 @@ bot = TelegramBot(
     webhook_secret=WEBHOOK_SECRET,
     allowed_users=ALLOWED_USERS,
     market_api_url=MARKET_API_URL,
-    logger=logger
+    logger=logger,
 )
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "message": "Bot gateway is running"}
+
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -41,43 +42,39 @@ async def telegram_webhook(request: Request):
         # Get request data
         update = await request.json()
         headers = dict(request.headers)
-        
+
         # Create request object for verification
-        webhook_request = {
-            "headers": headers,
-            "body": update
-        }
-        
+        webhook_request = {"headers": headers, "body": update}
+
         # Verify webhook
         if not await bot.verify_webhook(webhook_request):
             logger.warning("Invalid webhook token")
             raise HTTPException(status_code=403, detail="Invalid webhook token")
-        
+
         # Parse command
         command = await bot.parse_command(update)
-        
+
         # Check authorization
         if not await bot.is_user_authorized(command.user_id):
             logger.warning(f"Unauthorized user: {command.user_id}")
             raise HTTPException(status_code=403, detail="User not authorized")
-        
+
         # Handle command
         handler = bot.commands.get(command.command)
         if not handler:
             return JSONResponse(content={"text": "Unknown command"})
-        
+
         # Execute command
         response = await handler(command)
-        
+
         # Format and return response
         formatted_response = await bot.format_response(response)
         return JSONResponse(content={"text": formatted_response})
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error processing webhook: {e}", exc_info=True)
         return JSONResponse(
-            status_code=500,
-            content={"text": f"Error processing request: {str(e)}"}
-        ) 
+            status_code=500, content={"text": f"Error processing request: {str(e)}"}
+        )

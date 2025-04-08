@@ -2,21 +2,18 @@ import httpx
 import logging
 from typing import Dict, Any, Optional
 
+
 class MarketClient:
     """Client for interacting with Market Scanner API"""
-    
-    def __init__(
-        self,
-        base_url: str,
-        logger: Optional[logging.Logger] = None
-    ):
+
+    def __init__(self, base_url: str, logger: Optional[logging.Logger] = None):
         """
         Initialize Market Scanner API client
         Args:
             base_url: Base URL for the API (e.g., 'http://market-scanner:8000')
             logger: Optional logger instance
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.logger = logger or logging.getLogger(__name__)
 
     async def health_check(self) -> Dict[str, Any]:
@@ -62,4 +59,4 @@ class MarketClient:
                 return response.json()
         except Exception as e:
             self.logger.error(f"Trigger scan failed: {e}")
-            return {"status": "error", "message": str(e)} 
+            return {"status": "error", "message": str(e)}
