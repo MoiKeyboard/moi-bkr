@@ -32,7 +32,8 @@ Create a `.env` file in the project root:
 TELEGRAM_BOT_TOKEN=<your_bot_token_from_botfather>
 TELEGRAM_WEBHOOK_SECRET=<your_webhook_secret>
 TELEGRAM_ADMIN_ID=<your_numeric_user_id>
-
+# Ngrok Service Configuration
+NGROK_URL=https://<host_url_provided_by_ngrok>.ngrok-free.app
 # Market Scanner API Configuration
 MARKET_API_URL=http://localhost:8000
 
@@ -52,47 +53,36 @@ DOMAIN=localhost
 
 #### Start Services
 
-1. Load environment variables:
+1. Load environment variables into your current shell session:
    ```bash
-   # Export all variables from .env file (excluding comments)
-   export $(cat .env | grep -v '^#' | xargs)
-   
-   # Verify variables are loaded
-   echo $TELEGRAM_BOT_TOKEN
-   echo $TELEGRAM_ADMIN_ID
-   ```
+   # Export variables safely from .env, removing potential hidden characters
+   set -a # Automatically export subsequent variable assignments
+   source <(grep -v '^#' ../../.env | sed 's/\r$//') # Assuming .env is in the IBKR root
+   set +a # Stop auto-exporting
 
-2. Start the services:
-   ```bash
-   docker-compose up -d
+   # Verify variables are loaded (optional)
+   echo "Token='${TELEGRAM_BOT_TOKEN}'"
+   echo "Admin ID='${TELEGRAM_ADMIN_ID}'"
    ```
+   *Note: Adjust the path `../../.env` if your `.env` file is located elsewhere relative to where you run this command.*
 
-3. Start ngrok tunnel:
+2. Start ngrok tunnel (replace `443` if Traefik uses a different HTTPS port):
    ```bash
    ngrok http 443
    ```
-   Save the generated URL (e.g., `https://xxxx-xx-xx-xxx-xx.ngrok-free.app`)
+   Save the generated URL (e.g., `https://xxxx-xx-xx-xxx-xx.ngrok-free.app`) in the `.env` file as `NGROK_URL`.
 
-4. Set up webhook with Telegram:
+3. Set up the webhook with the saved ngrok URL:
    ```bash
-   # Method 1: Using direct token (recommended for testing)
-   # Replace YOUR_BOT_TOKEN with actual token, avoiding URL encoding issues
-   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
-
-   # Method 2: Using environment variable with URL encoding
-   BOT_TOKEN_ENCODED=$(echo $TELEGRAM_BOT_TOKEN | sed 's/:/\\:/g')
-   curl "https://api.telegram.org/bot${BOT_TOKEN_ENCODED}/getWebhookInfo"
-
-   # Set new webhook
-   curl "https://api.telegram.org/bot${BOT_TOKEN_ENCODED}/setWebhook" \
-   -H "Content-Type: application/json" \
-   -d '{
-       "url": "https://<your-ngrok-url>/bot/webhook",
-       "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"
-   }'
+   curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+      -H "Content-Type: application/json" \
+      -d '{"url": "'"${NGROK_URL}"'/bot/webhook", "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"}'
    ```
 
-   Note: Using the token directly in the URL avoids encoding issues that can occur with environment variables.
+4. Start the services:
+   ```bash
+   docker-compose up -d
+   ```
 
 ### 5. Testing
 

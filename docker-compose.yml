@@ -53,9 +53,9 @@ services:
       - "traefik.enable=true"
       # Router configuration
       - "traefik.http.routers.telegram-bot.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/bot`)"
-      - "traefik.http.routers.telegram-bot.entrypoints=web,websecure"
-      - "traefik.http.routers.telegram-bot.middlewares=strip-bot-prefix@docker,security-headers@docker"
+      - "traefik.http.routers.telegram-bot.entrypoints=websecure"
       - "traefik.http.routers.telegram-bot.tls=true"
+      - "traefik.http.routers.telegram-bot.middlewares=strip-bot-prefix@docker"
       # Service configuration
       - "traefik.http.services.telegram-bot.loadbalancer.server.port=8001"
       # Middleware configuration
@@ -64,7 +64,7 @@ services:
       - DOMAIN=${DOMAIN:-localhost}
       - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-your_webhook_secret}
       - TELEGRAM_ALLOWED_USERS=${TELEGRAM_ALLOWED_USERS:-123456789,987654321}
-      - MARKET_API_URL=https://${DOMAIN}/api
+      - MARKET_API_URL=http://market-scanner:8000
       - PORT=8001
     ports:
       - "8001:8001"
@@ -85,6 +85,7 @@ services:
       - "TRAEFIK_API_INSECURE=true"
       - "TRAEFIK_PROVIDERS_DOCKER=true"
       - "TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT=false"
+      - "TRAEFIK_PROVIDERS_DOCKER_NETWORK=trading-network"
       # Entrypoints
       - "TRAEFIK_ENTRYPOINTS_WEB_ADDRESS=:80"
       - "TRAEFIK_ENTRYPOINTS_WEBSECURE_ADDRESS=:443"
@@ -114,7 +115,7 @@ services:
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.entrypoints=web,websecure"
       - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.middlewares=strip-traefik-prefix@docker"
+      # - "traefik.http.routers.traefik.middlewares=strip-traefik-prefix@docker"
       # Middleware configuration
       - "traefik.http.middlewares.strip-traefik-prefix.stripprefix.prefixes=/traefik"
 # Shared network for all services
