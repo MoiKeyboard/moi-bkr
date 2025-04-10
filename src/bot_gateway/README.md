@@ -55,16 +55,13 @@ DOMAIN=localhost
 
 1. Load environment variables into your current shell session:
    ```bash
-   # Export variables safely from .env, removing potential hidden characters
-   set -a # Automatically export subsequent variable assignments
-   source <(grep -v '^#' ../../.env | sed 's/\r$//') # Assuming .env is in the IBKR root
-   set +a # Stop auto-exporting
+   # Load from .env file (if it exists in current directory)
+   export $(grep -v '^#' .env | sed 's/\r$//' | xargs)
 
    # Verify variables are loaded (optional)
    echo "Token='${TELEGRAM_BOT_TOKEN}'"
    echo "Admin ID='${TELEGRAM_ADMIN_ID}'"
    ```
-   *Note: Adjust the path `../../.env` if your `.env` file is located elsewhere relative to where you run this command.*
 
 2. Start ngrok tunnel (replace `443` if Traefik uses a different HTTPS port):
    ```bash
@@ -74,9 +71,12 @@ DOMAIN=localhost
 
 3. Set up the webhook with the saved ngrok URL:
    ```bash
-   curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+   curl -X POST 'https://api.telegram.org/bot'"${TELEGRAM_BOT_TOKEN}"'/setWebhook' \
       -H "Content-Type: application/json" \
-      -d '{"url": "'"${NGROK_URL}"'/bot/webhook", "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"}'
+      -d '{
+         "url": "'"${NGROK_URL}"'/bot/webhook",
+         "secret_token": "'"${TELEGRAM_WEBHOOK_SECRET}"'"
+      }'
    ```
 
 4. Start the services:
@@ -107,7 +107,9 @@ curl -k -X POST https://localhost/bot/webhook \
       "chat": {"id": your_telegram_user_id},
       "text": "/health"
     }
-  }'
+
+# Test webhook
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"
 ```
 
 #### Monitor Logs

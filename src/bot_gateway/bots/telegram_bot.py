@@ -50,13 +50,21 @@ class TelegramBot(BotPlatform):
             bool: True if verification passes
         """
         headers = request.get("headers", {})
-        token = headers.get("X-Telegram-Bot-Api-Secret-Token")
+        token = headers.get("x-telegram-bot-api-secret-token")  # Fixed casing for header key
         
-        if not token:
+        # Log the incoming secret for debugging
+        if token:
+            self.logger.info(f"Incoming secret token: {token}")
+        else:
             self.logger.warning("Missing webhook secret token")
             return False
+
+        # Verify that the incoming token matches the expected secret
+        if not hmac.compare_digest(token, self.webhook_secret):
+            self.logger.warning("Webhook secret token mismatch")
+            return False
             
-        return hmac.compare_digest(token, self.webhook_secret)
+        return True
 
     async def parse_command(self, update: Dict[str, Any]) -> BotCommand:
         """
@@ -187,4 +195,4 @@ class TelegramBot(BotPlatform):
             success=True,
             message="Available commands",
             data=help_text
-        ) 
+        )

@@ -52,7 +52,7 @@ services:
       # Core configuration
       - "traefik.enable=true"
       # Router configuration
-      - "traefik.http.routers.telegram-bot.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/bot`)"
+      - "traefik.http.routers.telegram-bot.rule=PathPrefix(`/bot`)"
       - "traefik.http.routers.telegram-bot.entrypoints=websecure"
       - "traefik.http.routers.telegram-bot.tls=true"
       - "traefik.http.routers.telegram-bot.middlewares=strip-bot-prefix@docker"
