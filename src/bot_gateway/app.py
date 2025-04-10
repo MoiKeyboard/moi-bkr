@@ -6,8 +6,7 @@ from .bots.telegram_bot import TelegramBot
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -27,13 +26,15 @@ bot = TelegramBot(
     webhook_secret=WEBHOOK_SECRET,
     allowed_users=ALLOWED_USERS,
     market_api_url=MARKET_API_URL,
-    logger=logger
+    logger=logger,
 )
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "message": "Bot gateway is running"}
+
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -53,10 +54,7 @@ async def telegram_webhook(request: Request):
         logger.info(f"Expected webhook secret: {WEBHOOK_SECRET}")
 
         # Create request object for verification
-        webhook_request = {
-            "headers": headers,
-            "body": update
-        }
+        webhook_request = {"headers": headers, "body": update}
 
         # Verify webhook
         if not await bot.verify_webhook(webhook_request):
@@ -91,6 +89,5 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error processing webhook: {e}", exc_info=True)
         return JSONResponse(
-            status_code=500,
-            content={"text": f"Error processing request: {str(e)}"}
+            status_code=500, content={"text": f"Error processing request: {str(e)}"}
         )
