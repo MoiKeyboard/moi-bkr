@@ -64,3 +64,8 @@ class BotPlatform(ABC):
             bool: True if user is authorized
         """
         pass
+
+    @abstractmethod
+    async def health_check(self) -> Dict[str, Any]:
+        """Check bot and its dependencies health"""
+        pass

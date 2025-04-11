@@ -3,6 +3,8 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from .bots.telegram_bot import TelegramBot
+import datetime
+from .bots.base_bot import BotCommand
 
 # Configure logging
 logging.basicConfig(
@@ -33,7 +35,24 @@ bot = TelegramBot(
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "ok", "message": "Bot gateway is running"}
+    try:
+        # Use the bot's health_check method
+        result = await bot.health_check()
+        
+        return {
+            "status": "ok",
+            "message": "Bot gateway is running",
+            "bot_health": result,
+            "version": "1.0",
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "error", 
+            "message": f"Health check failed: {str(e)}",
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -49,9 +68,6 @@ async def telegram_webhook(request: Request):
         logger.info(f"Received update: {update}")
         logger.info(f"Received headers: {headers}")
 
-        # Log the expected secret token
-        logger.info(f"Expected webhook secret: {WEBHOOK_SECRET}")
-
         # Create request object for verification
         webhook_request = {
             "headers": headers,
@@ -61,6 +77,8 @@ async def telegram_webhook(request: Request):
         # Verify webhook
         if not await bot.verify_webhook(webhook_request):
             logger.warning("Invalid webhook token")
+            # Log the expected secret token
+            logger.info(f"Expected webhook secret: {WEBHOOK_SECRET}")
             raise HTTPException(status_code=403, detail="Invalid webhook token")
 
         # Parse command

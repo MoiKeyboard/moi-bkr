@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from .base_bot import BotPlatform, BotCommand, BotResponse
 from ..market_client import MarketClient
+import datetime
 
 class TelegramBot(BotPlatform):
     """Telegram bot implementation"""
@@ -196,3 +197,33 @@ class TelegramBot(BotPlatform):
             message="Available commands",
             data=help_text
         )
+
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Check health of the bot and market API
+        Returns:
+            Dict with health status information
+        """
+        self.logger.info("Performing health check")
+        try:
+            # Check market API health
+            market_status = await self.market_client.health_check()
+            
+            return {
+                "bot": {
+                    "status": "healthy",
+                    "allowed_users": len(self.allowed_users)
+                },
+                "market_api": market_status,
+                "timestamp": datetime.datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            self.logger.error(f"Health check failed: {e}")
+            return {
+                "bot": {
+                    "status": "error",
+                    "message": str(e)
+                },
+                "market_api": {"status": "unknown"},
+                "timestamp": datetime.datetime.utcnow().isoformat()
+            }
