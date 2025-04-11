@@ -11,7 +11,7 @@ A comprehensive algorithmic trading system that integrates market scanning, tech
     - [Market Scanner](#market-scanner)
     - [Trading Strategies](#trading-strategies)
     - [API Endpoints](#api-endpoints)
-  - [In-progress/Current Milestones](#in-progresscurrent-milestones)
+    - [Telegram Bot](#telegram-bot)
   - [Prerequisites](#prerequisites)
   - [Installation (Python)](#installation-python)
   - [Installation (Docker Container)](#installation-docker-container)
@@ -21,6 +21,7 @@ A comprehensive algorithmic trading system that integrates market scanning, tech
   - [Data Provider Setup](#data-provider-setup)
     - [IBKR Trade Workstation settings](#ibkr-trade-workstation-settings)
   - [Project Structure](#project-structure)
+  - [Documentation](#documentation)
   - [Contributing](#contributing)
   - [License](#license)
   - [Acknowledgments](#acknowledgments)
@@ -48,22 +49,35 @@ A comprehensive algorithmic trading system that integrates market scanning, tech
 - `/scan` - Trigger market scan
 - `/trending` - Get trending stocks
 
-## In-progress/Current Milestones
-- ✅ Traefik integration (reverse proxy, TLS)
-- ⏳ Telegram bot integration
-- ⏳ Encrypt data in transit 
-- ⏳ Managed Cloud or VPS deployment
-- ⏳ API watchlist functionality
-- ⏳ Configuration management refactoring
-- ⏳ Environment config management
-- ⏳ Centralized logging
-- ⏳ Config.yaml immutability
+### Telegram Bot
+- Real-time interaction with the trading system via Telegram
+- Commands for market scanning, trending stocks, and system health
+- Secure webhook integration with Telegram's API
+- User authentication for secure access
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Traefik integration | ✅ Complete | Reverse proxy, TLS, API routing |
+| Telegram bot integration | ✅ Complete | Webhook, commands, user authentication |
+| Secure data transmission | ✅ Complete | TLS/HTTPS for all endpoints |
+| Webhook setup automation | ✅ Complete | Integrated ngrok for local development |
+| Docker containerization | ✅ Complete | Multi-container setup with Docker Compose |
+| Market scanner API | ✅ Complete | Health, scan, and trending endpoints |
+| Bot gateway API | ✅ Complete | Webhook and health endpoints |
+| Managed Cloud/VPS deployment | ⏳ Planned | |
+| API watchlist functionality | ⏳ Planned | |
+| Configuration management | ⏳ In Progress | |
+| Environment config management | ⏳ In Progress | |
+| Centralized logging | ⏳ Planned | |
+| Config.yaml immutability | ⏳ Planned | |
 
 ## Prerequisites
 
 - Python 3.12+ (optional if using container)
 - Docker (optional if without Python)
 - Interactive Brokers TWS or Gateway
+- Ngrok (for local webhook development)
+- Telegram account (for bot interaction)
 
 ## Installation (Python)
 
@@ -103,16 +117,17 @@ docker pull ghcr.io/moikeyboard/moi-bkr/market-scanner:latest
 ```
 
 ### Run the Container
-```powershell
+```bash
 cd IBKR
-docker run --rm `
-  --name market-scanner `
-  -p 8000:8000 `
-  -e ENV_MODE=prod `
-  -v ${PWD}/.data:/app/.data `
-  -v ${PWD}/config.yaml:/app/config.yaml `
+docker run --rm \
+  --name market-scanner \
+  -p 8000:8000 \
+  -e ENV_MODE=prod \
+  -v $(pwd)/.data:/app/.data \
+  -v $(pwd)/config.yaml:/app/config.yaml \
   ghcr.io/moikeyboard/moi-bkr/market-scanner:latest
 ```
+
 
 ## Configuration
 
@@ -135,18 +150,28 @@ market_analysis:
     # Add more tickers...
 ```
 
-3. Generate self-signed certificates (optional for HTTPS)
-```powershell
+3. Configure Telegram bot in `.env`:
+```env
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=<your_bot_token_from_botfather>
+TELEGRAM_WEBHOOK_SECRET=<your_webhook_secret>
+TELEGRAM_ALLOWED_USERS=<your_numeric_user_id>
+# Ngrok URL for local development
+NGROK_URL=<your_ngrok_url>
+```
+
+1. Generate self-signed certificates
+```bash
 # Step 1: Generate private key
-docker run --rm -v ${PWD}/certs:/certs alpine/openssl genrsa -out /certs/wildcard.key 2048
+docker run --rm -v $(pwd)/certs:/certs alpine/openssl genrsa -out /certs/wildcard.key 2048
 
 # Step 2: Generate certificate using the key
-docker run --rm -v ${PWD}/certs:/certs alpine/openssl req `
-    -x509 `
-    -nodes `
-    -days 365 `
-    -key /certs/wildcard.key `
-    -out /certs/wildcard.crt `
+docker run --rm -v $(pwd)/certs:/certs alpine/openssl req \
+    -x509 \
+    -nodes \
+    -days 365 \
+    -key /certs/wildcard.key \
+    -out /certs/wildcard.crt \
     -config /certs/openssl.conf
 ```
 
@@ -168,6 +193,7 @@ docker run --rm -v ${PWD}/certs:/certs alpine/openssl req `
 ├── src/
 │ ├── analysis/ # Market analysis and data providers
 │ ├── api/ # API endpoints
+│ ├── bot_gateway/ # Telegram bot integration
 │ ├── strategy/ # Trading strategies
 │ └── tws/ # Interactive Brokers integration
 ├── tests/ # Unit test files
@@ -176,6 +202,10 @@ docker run --rm -v ${PWD}/certs:/certs alpine/openssl req `
 ├── docker-compose.yml # Docker composition
 └── requirements.txt # Python dependencies
 ```
+
+## Documentation
+
+- [Market Scanner API](src/api/README.md) - API endpoints for market scanning
 
 ## Contributing
 
@@ -193,5 +223,6 @@ lorem ipsum
 
 - Interactive Brokers API
 - Yahoo Finance API
-- Backtrader library
-- Traefik 
+- Telegram Bot API
+- Traefik for reverse proxy and TLS
+- ngrok for local webhook development
