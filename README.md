@@ -204,6 +204,7 @@ docker run --rm -v $(pwd)/certs:/certs alpine/openssl req \
 ```
 
 ## Documentation
+- [Configuration Management](config/README.md) - Configuration management across environments
 - [Market Scanner](src/analysis/README.md) - Technical analytics of data provided upstream (documentation in-progress)
 - [Market Scanner API](src/api/README.md) - Internal API for market scanner (documentation in-progress)
 - [Bot API](src/bot_gateway/README.md) - Bot API for interfacing market scanner
