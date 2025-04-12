@@ -1,34 +1,5 @@
 # Configuration System Guide
 
-## Objectives
-
-1. **Environment-Specific Configuration Management**
-   - Separate configuration for different environments (development, production)
-   - Prevent accidental mixing of development and production settings
-   - Enable easy switching between environments
-
-2. **Secure Secrets Management**
-   - Keep sensitive data (API keys, tokens, passwords) separate from code
-   - Use environment variables for secrets using `$VAR` notation
-   - Prevent accidental commit of sensitive information
-   - Support for environment-specific secrets
-
-3. **Validation and Type Safety**
-   - Schema-based validation of configuration values
-   - Type checking for configuration parameters
-   - Range validation for numeric values (e.g., port numbers)
-   - Required field enforcement
-
-4. **Hierarchical Configuration**
-   - Base configuration with default values (`base.yml`)
-   - Environment-specific overrides
-   - Clear precedence rules for value resolution
-
-5. **Documentation and Maintainability**
-   - Clear structure for configuration files
-   - Metadata annotations for configuration values
-   - Documentation of configuration options
-   - Examples of usage and setup
 - [Configuration System Guide](#configuration-system-guide)
   - [Objectives](#objectives)
   - [File Structure](#file-structure)
@@ -39,6 +10,37 @@
   - [Usage Examples](#usage-examples)
   - [Setting Up Environments](#setting-up-environments)
   - [Validation](#validation)
+
+## Objectives
+
+Following the [12-factor app](https://12factor.net/) methodology, our configuration system addresses multiple factors:
+
+1. **Environment-Specific Configuration** (Factor III: Config)
+   - Store config in environment variables
+   - Keep development, staging, and production configs separate
+   - Enable easy environment switching without code changes
+
+2. **Secrets Management** (Factor III: Config)
+   - Store credentials in environment variables
+   - Use `$VAR` notation for sensitive data
+   - Never commit secrets to version control
+   - Support per-environment secrets
+
+3. **Config Validation** (Factor V: Build, release, run)
+   - Validate configuration at startup
+   - Ensure all required values are present
+   - Type checking for configuration values
+   - Fail fast if configuration is invalid
+
+4. **Logging** (Factor XI: Logs)
+   - Log configuration loading and validation
+   - Track configuration changes
+   - Debug information for configuration issues
+
+5. **Disposability** (Factor IX: Disposability)
+   - Fast startup with configuration validation
+   - Graceful shutdown preserving configuration state
+   - Support for configuration reloading
 
 ## File Structure
 ```
