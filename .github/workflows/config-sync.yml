@@ -42,20 +42,18 @@ jobs:
           if [[ $(git status --porcelain) ]]; then
             echo "Changes detected after config sync"
             
-            # Save git diff
-            git diff > /tmp/diff.txt
-            
-            # Create PR body with simple echo commands
+            # Create PR body file
+            rm -f /tmp/pr-body.md
             echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
-            echo "" >> /tmp/pr-body.md
+            echo >> /tmp/pr-body.md
             echo "### Changes Overview" >> /tmp/pr-body.md
             echo "This automated PR updates environment-specific configurations to align with changes in base.yml." >> /tmp/pr-body.md
-            echo "" >> /tmp/pr-body.md
+            echo >> /tmp/pr-body.md
             echo "### Diff Details" >> /tmp/pr-body.md
-            echo "\`\`\`diff" >> /tmp/pr-body.md
-            cat /tmp/diff.txt >> /tmp/pr-body.md
-            echo "\`\`\`" >> /tmp/pr-body.md
-            echo "" >> /tmp/pr-body.md
+            echo '```diff' >> /tmp/pr-body.md
+            git diff >> /tmp/pr-body.md
+            echo '```' >> /tmp/pr-body.md
+            echo >> /tmp/pr-body.md
             echo "### Notes" >> /tmp/pr-body.md
             echo "- Only environment-specific overrides are preserved" >> /tmp/pr-body.md
             echo "- All other values are inherited from base.yml" >> /tmp/pr-body.md
@@ -67,23 +65,24 @@ jobs:
             
             # Create new branch with timestamp
             BRANCH_NAME="auto/config-sync-$(date +%Y%m%d-%H%M%S)"
-            git checkout -b $BRANCH_NAME
+            git checkout -b "$BRANCH_NAME"
             
             # Commit and push changes to new branch
             git add config/environments/*.yml
             git commit -m "chore: sync environment configs with base.yml"
-            git push origin $BRANCH_NAME
+            git push origin "$BRANCH_NAME"
             
             # Create Pull Request using GitHub CLI with error handling
             echo "Creating pull request..."
-            if ! gh pr create \
+            gh pr create \
               --title "Config Sync: Update environment configurations" \
               --body-file /tmp/pr-body.md \
               --base main \
-              --head "$BRANCH_NAME"; then
-              echo "Failed to create PR, but changes are pushed to branch $BRANCH_NAME"
-              exit 0
-            fi
+              --head "$BRANCH_NAME" || {
+                echo "Failed to create PR, but changes are pushed to branch $BRANCH_NAME"
+                exit 0
+              }
+          fi
 
       - name: Report Status
         if: always()
