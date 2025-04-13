@@ -46,22 +46,20 @@ jobs:
             git diff > /tmp/config-diff.txt
             
             # Create PR body
-            cat > /tmp/pr-body.md << 'EOF'
-            This PR synchronizes environment configurations with base.yml
-
-            ### Changes Overview
-            This automated PR updates environment-specific configurations to align with changes in base.yml.
-
-            ### Diff Details
-            ```diff
-            $(cat /tmp/config-diff.txt)
-            ```
-
-            ### Notes
-            - Only environment-specific overrides are preserved
-            - All other values are inherited from base.yml
-            - Review the changes to ensure no environment-specific configurations were accidentally modified
-            EOF
+            echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
+            echo "" >> /tmp/pr-body.md
+            echo "### Changes Overview" >> /tmp/pr-body.md
+            echo "This automated PR updates environment-specific configurations to align with changes in base.yml." >> /tmp/pr-body.md
+            echo "" >> /tmp/pr-body.md
+            echo "### Diff Details" >> /tmp/pr-body.md
+            echo '```diff' >> /tmp/pr-body.md
+            cat /tmp/config-diff.txt >> /tmp/pr-body.md
+            echo '```' >> /tmp/pr-body.md
+            echo "" >> /tmp/pr-body.md
+            echo "### Notes" >> /tmp/pr-body.md
+            echo "- Only environment-specific overrides are preserved" >> /tmp/pr-body.md
+            echo "- All other values are inherited from base.yml" >> /tmp/pr-body.md
+            echo "- Review the changes to ensure no environment-specific configurations were accidentally modified" >> /tmp/pr-body.md
             
             # Configure git
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
