@@ -1,0 +1,5 @@
+bot_gateway:
+  domain: ${DOMAIN}
+  port: 8001
+  env_mode: prod
+  log_level: info

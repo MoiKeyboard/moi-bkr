@@ -1,6 +1,6 @@
 market_analysis:
-  data_dir: .data              # @env: DATA_DIR
-  lookback_days: 100          # @min: 1 @max: 365
+  data_dir: .data
+  lookback_days: 100
   provider: yahoo
   tickers:
     - JPM
@@ -13,41 +13,28 @@ market_analysis:
     - AAPL
     - V
     - AMD
-
 output:
-  file: positions.csv          # @env: OUTPUT_FILE
-
+  file: positions.csv
 tws:
-  client_id: 1                # @env: TWS_CLIENT_ID
-  host: host.docker.internal  # @env: TWS_HOST
-  password: $TWS_PASSWORD     # Secret
-  port: 7497                  # @env: TWS_PORT
-  user: rnbbop246             # @env: TWS_USER
-
-environments:
-  development:
-    domain: localhost
-    port: 8000                # @env: DEV_PORT
-    env_mode: dev
-    log_level: debug          # @enum: debug,info,warning,error
-
-  production:
-    domain: $DOMAIN           # Secret
-    port: 8000                # @env: PROD_PORT
-    env_mode: prod
-    log_level: info
-
+  client_id: 1
+  host: host.docker.internal
+  password: ${TWS_PASSWORD}
+  port: 7497
+  user: rnbbop246
 bot_gateway:
+  domain: localhost
+  port: 8001
+  env_mode: dev
+  log_level: debug
   telegram:
-    bot_token: $TELEGRAM_BOT_TOKEN       # Secret
-    webhook_secret: $TELEGRAM_WEBHOOK_SECRET  # Secret
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    webhook_secret: ${TELEGRAM_WEBHOOK_SECRET}
     allowed_users:
-      - $TELEGRAM_ADMIN_ID               # Secret
+      - ${TELEGRAM_ADMIN_ID}
     rate_limit:
-      requests_per_minute: 60            # @min: 1
-
+      requests_per_minute: 60
   security:
-    api_key: $MARKET_API_KEY             # Secret
-    tls_verify: true                     # @type: boolean
+    api_key: ${MARKET_API_KEY}
+    tls_verify: true
     allowed_hosts:
-      - $DOMAIN                          # Secret
+      - ${DOMAIN}
