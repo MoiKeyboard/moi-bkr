@@ -43,18 +43,18 @@ jobs:
             echo "Changes detected after config sync"
             
             # Save git diff
-            git diff > /tmp/config-diff.txt
+            git diff > /tmp/diff.txt
             
-            # Create PR body
+            # Create PR body with simple echo commands
             echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
             echo "" >> /tmp/pr-body.md
             echo "### Changes Overview" >> /tmp/pr-body.md
             echo "This automated PR updates environment-specific configurations to align with changes in base.yml." >> /tmp/pr-body.md
             echo "" >> /tmp/pr-body.md
             echo "### Diff Details" >> /tmp/pr-body.md
-            echo '```diff' >> /tmp/pr-body.md
-            cat /tmp/config-diff.txt >> /tmp/pr-body.md
-            echo '```' >> /tmp/pr-body.md
+            echo "\`\`\`diff" >> /tmp/pr-body.md
+            cat /tmp/diff.txt >> /tmp/pr-body.md
+            echo "\`\`\`" >> /tmp/pr-body.md
             echo "" >> /tmp/pr-body.md
             echo "### Notes" >> /tmp/pr-body.md
             echo "- Only environment-specific overrides are preserved" >> /tmp/pr-body.md
