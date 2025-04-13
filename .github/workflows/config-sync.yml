@@ -34,14 +34,32 @@ jobs:
 
       - name: Sync Configuration Files
         run: |
-          python .github/workflows/scripts/config_sync.py
+          python .github/scripts/sync_config.py
 
       - name: Check and Create PR if needed
         id: sync-check
         run: |
           if [[ $(git status --porcelain) ]]; then
             echo "Changes detected after config sync"
-            git diff
+            
+            # Save git diff and create PR body
+            git diff > /tmp/config-diff.txt
+            cat << EOF > /tmp/pr-body.md
+            This PR synchronizes environment configurations with base.yml
+
+            ### Changes Overview
+            This automated PR updates environment-specific configurations to align with changes in base.yml.
+
+            ### Diff Details
+            \`\`\`diff
+            $(cat /tmp/config-diff.txt)
+            \`\`\`
+
+            ### Notes
+            - Only environment-specific overrides are preserved
+            - All other values are inherited from base.yml
+            - Review the changes to ensure no environment-specific configurations were accidentally modified
+            EOF
             
             # Configure git
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -56,30 +74,16 @@ jobs:
             git commit -m "chore: sync environment configs with base.yml"
             git push origin $BRANCH_NAME
             
-            # Create Pull Request using GitHub CLI
-            gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-            gh pr create \
+            # Create Pull Request using GitHub CLI with error handling
+            echo "Creating pull request..."
+            if ! gh pr create \
               --title "Config Sync: Update environment configurations" \
-              --body "This PR synchronizes environment configurations with base.yml" \
+              --body-file /tmp/pr-body.md \
               --base main \
-              --head $BRANCH_NAME
-
-            # After successful PR creation, clean up old branches and PRs
-            echo "Cleaning up old config-sync branches and PRs..."
-            git fetch origin
-            for branch in $(git branch -r | grep 'origin/auto/config-sync-' | sed 's/origin\///'); do
-              if [[ "$branch" != "$BRANCH_NAME" ]]; then
-                # Close PR associated with this branch if it exists
-                gh pr list --state open --head $branch --json number --jq '.[].number' | xargs -I {} gh pr close {}
-                # Delete remote branch
-                git push origin --delete $branch || true
-              fi
-            done
-          else
-            echo "No changes detected after config sync"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              --head "$BRANCH_NAME"; then
+              echo "Failed to create PR, but changes are pushed to branch $BRANCH_NAME"
+              exit 0
+            fi
 
       - name: Report Status
         if: always()
