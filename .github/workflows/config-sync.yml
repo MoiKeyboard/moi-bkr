@@ -9,11 +9,18 @@ on:
       - main
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   sync-config:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -27,17 +34,55 @@ jobs:
 
       - name: Sync Configuration Files
         run: |
-          python .github/workflows/scripts/config_sync.py
-        
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: 'chore: sync environment configs with base.yml'
-          title: 'Config Sync: Update environment configurations'
-          body: |
-            This PR synchronizes environment configurations with base.yml
-            - Adds new variables from base.yml
-            - Preserves existing overridden values
-            - Updates structure to match base.yml
-          branch: config-sync
-          delete-branch: true
+          python .github/scripts/sync_config.py
+
+      - name: Check and Create PR if needed
+        id: sync-check
+        run: |
+          if [[ $(git status --porcelain) ]]; then
+            echo "Changes detected after config sync"
+            git diff
+            
+            # Configure git
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            
+            # Create new branch with timestamp
+            BRANCH_NAME="auto/config-sync-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b $BRANCH_NAME
+            
+            # Commit and push changes to new branch
+            git add config/environments/*.yml
+            git commit -m "chore: sync environment configs with base.yml"
+            git push origin $BRANCH_NAME
+            
+            # Create Pull Request using GitHub CLI
+            gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+            gh pr create \
+              --title "Config Sync: Update environment configurations" \
+              --body "This PR synchronizes environment configurations with base.yml" \
+              --base main \
+              --head $BRANCH_NAME
+
+            # After successful PR creation, clean up old branches and PRs
+            echo "Cleaning up old config-sync branches and PRs..."
+            git fetch origin
+            for branch in $(git branch -r | grep 'origin/auto/config-sync-' | sed 's/origin\///'); do
+              if [[ "$branch" != "$BRANCH_NAME" ]]; then
+                # Close PR associated with this branch if it exists
+                gh pr list --state open --head $branch --json number --jq '.[].number' | xargs -I {} gh pr close {}
+                # Delete remote branch
+                git push origin --delete $branch || true
+              fi
+            done
+          else
+            echo "No changes detected after config sync"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report Status
+        if: always()
+        run: |
+          echo "Config Sync Summary:"
+          echo "- Sync status: ${{ job.status }}"

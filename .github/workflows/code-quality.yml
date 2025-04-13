@@ -51,7 +51,7 @@ jobs:
             git config --local user.name "github-actions[bot]"
             
             # Create new branch with timestamp
-            BRANCH_NAME="format/auto-format-$(date +%Y%m%d-%H%M%S)"
+            BRANCH_NAME="auto/auto-format-$(date +%Y%m%d-%H%M%S)"
             git checkout -b $BRANCH_NAME
             
             # Commit and push changes to new branch
