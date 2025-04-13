@@ -42,18 +42,20 @@ jobs:
           if [[ $(git status --porcelain) ]]; then
             echo "Changes detected after config sync"
             
-            # Save git diff and create PR body
+            # Save git diff
             git diff > /tmp/config-diff.txt
-            cat << EOF > /tmp/pr-body.md
+            
+            # Create PR body
+            cat > /tmp/pr-body.md << 'EOF'
             This PR synchronizes environment configurations with base.yml
 
             ### Changes Overview
             This automated PR updates environment-specific configurations to align with changes in base.yml.
 
             ### Diff Details
-            \`\`\`diff
+            ```diff
             $(cat /tmp/config-diff.txt)
-            \`\`\`
+            ```
 
             ### Notes
             - Only environment-specific overrides are preserved
