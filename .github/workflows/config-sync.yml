@@ -34,7 +34,7 @@ jobs:
 
       - name: Sync Configuration Files
         run: |
-          python .github/scripts/sync_config.py
+          python .github/workflows/scripts/config_sync.py
 
       - name: Check and Create PR if needed
         id: sync-check
