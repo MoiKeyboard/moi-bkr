@@ -3,7 +3,15 @@ from pathlib import Path
 from typing import Dict, Any
 
 def load_yaml(file_path: Path) -> Dict[str, Any]:
-    """Load YAML file with error handling"""
+    """
+    Load and parse a YAML file with error handling.
+    
+    Args:
+        file_path: Path to the YAML file to load
+        
+    Returns:
+        Dict containing the YAML contents, or empty dict if file doesn't exist/is invalid
+    """
     try:
         with open(file_path, 'r') as f:
             return yaml.safe_load(f) or {}
@@ -12,7 +20,13 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
         return {}
 
 def save_yaml(data: Dict[str, Any], file_path: Path) -> None:
-    """Save YAML file with error handling"""
+    """
+    Save dictionary to YAML file while preserving format.
+    
+    Args:
+        data: Dictionary to save
+        file_path: Path where to save the YAML file
+    """
     try:
         with open(file_path, 'w') as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
@@ -22,7 +36,14 @@ def save_yaml(data: Dict[str, Any], file_path: Path) -> None:
 def deep_update(base: Dict[str, Any], env: Dict[str, Any]) -> Dict[str, Any]:
     """
     Recursively update base configuration with environment overrides.
-    Only preserves values that are explicitly different from base.
+    Only preserves environment values that explicitly differ from base.
+    
+    Args:
+        base: Base configuration dictionary from base.yml
+        env: Environment-specific configuration dictionary
+        
+    Returns:
+        Updated configuration dictionary with inherited and overridden values
     """
     result = base.copy()
     
@@ -46,6 +67,11 @@ def deep_update(base: Dict[str, Any], env: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 def sync_configs():
+    """
+    Synchronize configurations across environments using base.yml as template.
+    Loads base configuration and updates each environment while preserving
+    their specific overrides.
+    """
     config_dir = Path('config')
     base_file = config_dir / 'base.yml'
     env_dir = config_dir / 'environments'
