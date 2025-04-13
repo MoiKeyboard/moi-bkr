@@ -60,7 +60,7 @@ jobs:
             git push origin $BRANCH_NAME
             
             # Create Pull Request using GitHub CLI
-            gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+            gh auth login --with-token <<< "${{ secrets.PAT }}"
             gh pr create \
               --title "style: auto-format code with Black" \
               --body "Automated PR to format code using Black formatter" \

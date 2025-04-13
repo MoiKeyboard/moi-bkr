@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -39,7 +39,7 @@ jobs:
       - name: Check and Create PR if needed
         id: sync-check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT }}
         run: |
           if [[ $(git status --porcelain) ]]; then
             echo "Changes detected after config sync"
