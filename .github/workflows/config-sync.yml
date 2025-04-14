@@ -36,79 +36,127 @@ jobs:
         run: |
           python .github/workflows/scripts/config_sync.py
 
-      - name: Check and Create PR if needed
-        id: sync-check
+      - name: Check for configuration changes
+        id: check-changes
+        run: |
+          if [[ $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create new branch
+        if: steps.check-changes.outputs.has_changes == 'true'
+        id: create-branch
+        run: |
+          # Configure git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Create new branch with timestamp
+          BRANCH_NAME="auto/config-sync-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Prepare PR body
+        if: steps.check-changes.outputs.has_changes == 'true'
+        id: prepare-pr
+        run: |
+          # Create PR body file
+          rm -f /tmp/pr-body.md
+          echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
+          echo >> /tmp/pr-body.md
+          echo "### Changes Overview" >> /tmp/pr-body.md
+          echo "This automated PR:" >> /tmp/pr-body.md
+          echo "- Sorts all configuration files alphabetically" >> /tmp/pr-body.md
+          echo "- Updates environment-specific configurations to align with changes in base.yml" >> /tmp/pr-body.md
+          echo >> /tmp/pr-body.md
+          echo "### Diff Details" >> /tmp/pr-body.md
+          echo '```diff' >> /tmp/pr-body.md
+          git diff >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
+          echo >> /tmp/pr-body.md
+          echo "### Notes" >> /tmp/pr-body.md
+          echo "- Only environment-specific overrides are preserved" >> /tmp/pr-body.md
+          echo "- All other values are inherited from base.yml" >> /tmp/pr-body.md
+          echo "- Review the changes to ensure no environment-specific configurations were accidentally modified" >> /tmp/pr-body.md
+
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        id: push-changes
+        run: |
+          # Commit and push changes to new branch
+          git add '*.yml'
+          git commit -m "chore: sort and sync configuration yml files"
+          git push origin "${{ steps.create-branch.outputs.branch_name }}"
+          echo "pushed=true" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: steps.push-changes.outputs.pushed == 'true'
+        id: create-pr
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          if [[ $(git status --porcelain) ]]; then
-            echo "Changes detected after config sync"
-            
-            # Create PR body file
-            rm -f /tmp/pr-body.md
-            echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
-            echo >> /tmp/pr-body.md
-            echo "### Changes Overview" >> /tmp/pr-body.md
-            echo "This automated PR:" >> /tmp/pr-body.md
-            echo "- Sorts all configuration files alphabetically" >> /tmp/pr-body.md
-            echo "- Updates environment-specific configurations to align with changes in base.yml" >> /tmp/pr-body.md
-            echo >> /tmp/pr-body.md
-            echo "### Diff Details" >> /tmp/pr-body.md
-            echo '```diff' >> /tmp/pr-body.md
-            git diff >> /tmp/pr-body.md
-            echo '```' >> /tmp/pr-body.md
-            echo >> /tmp/pr-body.md
-            echo "### Notes" >> /tmp/pr-body.md
-            echo "- Only environment-specific overrides are preserved" >> /tmp/pr-body.md
-            echo "- All other values are inherited from base.yml" >> /tmp/pr-body.md
-            echo "- Review the changes to ensure no environment-specific configurations were accidentally modified" >> /tmp/pr-body.md
-            
-            # Configure git
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-            
-            # Create new branch with timestamp
-            BRANCH_NAME="auto/config-sync-$(date +%Y%m%d-%H%M%S)"
-            git checkout -b "$BRANCH_NAME"
-            
-            # Commit and push changes to new branch
-            git add config/*.yml
-            git commit -m "chore: sort and sync configuration files"
-            git push origin "$BRANCH_NAME"
-            
-            # Create Pull Request using GitHub CLI with error handling
-            echo "Creating pull request..."
-            NEW_PR_NUM=""
-            if gh pr create \
-              --title "Config Sync: Sort and update configuration files" \
-              --body-file /tmp/pr-body.md \
-              --base main \
-              --head "$BRANCH_NAME"; then
-              
-              # Get the PR number that was just created
-              NEW_PR_NUM=$(gh pr view "$BRANCH_NAME" --json number --jq '.number')
-              echo "Successfully created PR #$NEW_PR_NUM from branch $BRANCH_NAME"
-              
-              # Now close older PRs and delete their branches
-              echo "Closing existing config-sync pull requests..."
-              EXISTING_PRS=$(gh pr list --head "auto/config-sync-" --json number,headRefName --jq '.[] | [.number, .headRefName] | @tsv')
-              
-              if [ -n "$EXISTING_PRS" ]; then
-                echo "$EXISTING_PRS" | while read -r PR_NUM PR_BRANCH; do
-                  # Skip the PR we just created
-                  if [ "$PR_NUM" != "$NEW_PR_NUM" ]; then
-                    echo "Closing PR #$PR_NUM from branch $PR_BRANCH"
-                    gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
-                    
-                    # Delete the branch
-                    git push origin --delete "$PR_BRANCH" || echo "Could not delete branch $PR_BRANCH"
-                  fi
-                done
-              fi
-            else
-              echo "Failed to create PR, but changes are pushed to branch $BRANCH_NAME"
-              exit 0
-            fi
+          # Create Pull Request using GitHub CLI
+          echo "Creating pull request..."
+          PR_URL=$(gh pr create \
+            --title "Config Sync: Sort and update configuration files" \
+            --body-file /tmp/pr-body.md \
+            --base main \
+            --head "${{ steps.create-branch.outputs.branch_name }}" --json url --jq '.url')
+          
+          if [ -n "$PR_URL" ]; then
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            echo "created=true" >> $GITHUB_OUTPUT
+            echo "Successfully created PR: $PR_URL"
+          else
+            echo "Failed to create PR"
+            echo "created=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: List PRs to close
+        if: steps.create-pr.outputs.created == 'true'
+        id: list-old-prs
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          # List open PRs with head branch matching auto/config-sync-*
+          # But exclude the one we just created
+          gh pr list --search "head:auto/config-sync- is:open" --json number,headRefName,url --jq '.[] | select(.url != "${{ steps.create-pr.outputs.pr_url }}") | [.number, .headRefName] | @tsv' > /tmp/prs_to_close.txt
+          
+          if [ -s /tmp/prs_to_close.txt ]; then
+            echo "has_prs_to_close=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_prs_to_close=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Close old PRs
+        if: steps.list-old-prs.outputs.has_prs_to_close == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          NEW_PR_URL: ${{ steps.create-pr.outputs.pr_url }}
+        run: |
+          echo "Closing older config-sync pull requests..."
+          
+          NEW_PR_NUM=$(echo "$NEW_PR_URL" | grep -o '[0-9]\+$')
+          
+          while read -r PR_NUM PR_BRANCH; do
+            echo "Closing PR #$PR_NUM from branch $PR_BRANCH"
+            gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
+            echo "$PR_BRANCH" >> /tmp/branches_to_delete.txt
+          done < /tmp/prs_to_close.txt
+
+      - name: Clean up branches
+        if: always() && steps.list-old-prs.outputs.has_prs_to_close == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          if [ -f /tmp/branches_to_delete.txt ]; then
+            echo "Deleting old branches..."
+            while read -r BRANCH; do
+              echo "Deleting branch $BRANCH"
+              git push origin --delete "$BRANCH" || echo "Could not delete branch $BRANCH"
+            done < /tmp/branches_to_delete.txt
           fi
 
       - name: Report Status
