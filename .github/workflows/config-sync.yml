@@ -99,16 +99,17 @@ jobs:
         run: |
           # Create Pull Request using GitHub CLI
           echo "Creating pull request..."
-          PR_URL=$(gh pr create \
+          if gh pr create \
             --title "Config Sync: Sort and update configuration files" \
             --body-file /tmp/pr-body.md \
             --base main \
-            --head "${{ steps.create-branch.outputs.branch_name }}" --json url --jq '.url')
-          
-          if [ -n "$PR_URL" ]; then
-            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            --head "${{ steps.create-branch.outputs.branch_name }}"; then
+            
+            # Get PR number after successful creation
+            PR_NUM=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json number -q '.number')
+            echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
             echo "created=true" >> $GITHUB_OUTPUT
-            echo "Successfully created PR: $PR_URL"
+            echo "Successfully created PR #$PR_NUM"
           else
             echo "Failed to create PR"
             echo "created=false" >> $GITHUB_OUTPUT
