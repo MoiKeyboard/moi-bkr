@@ -1,6 +1,6 @@
 import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, OrderedDict
 
 def load_yaml(file_path: Path) -> Dict[str, Any]:
     """
@@ -19,6 +19,29 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
         print(f"Error loading {file_path}: {e}")
         return {}
 
+def sort_dict_alphabetically(d: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively sort dictionary keys alphabetically.
+    
+    Args:
+        d: Dictionary to sort
+        
+    Returns:
+        New dictionary with keys sorted alphabetically at all levels
+    """
+    if not isinstance(d, dict):
+        return d
+        
+    result = {}
+    # Sort the keys and create a new dictionary
+    for key in sorted(d.keys()):
+        # Recursively sort any nested dictionaries
+        if isinstance(d[key], dict):
+            result[key] = sort_dict_alphabetically(d[key])
+        else:
+            result[key] = d[key]
+    return result
+
 def save_yaml(data: Dict[str, Any], file_path: Path) -> None:
     """
     Save dictionary to YAML file while preserving format.
@@ -27,9 +50,12 @@ def save_yaml(data: Dict[str, Any], file_path: Path) -> None:
         data: Dictionary to save
         file_path: Path where to save the YAML file
     """
+    # Sort the dictionary before saving
+    sorted_data = sort_dict_alphabetically(data)
+    
     try:
         with open(file_path, 'w') as f:
-            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+            yaml.dump(sorted_data, f, default_flow_style=False)
     except Exception as e:
         print(f"Error saving {file_path}: {e}")
 
@@ -99,5 +125,28 @@ def sync_configs():
         save_yaml(updated_config, env_file)
         print(f"Updated {env_name}.yml")
 
+def sort_configs():
+    """
+    Sort all configuration files alphabetically.
+    """
+    config_dir = Path('config')
+    base_file = config_dir / 'base.yml'
+    env_dir = config_dir / 'environments'
+    
+    # Sort base configuration
+    base_config = load_yaml(base_file)
+    if base_config:
+        save_yaml(base_config, base_file)
+        print(f"Sorted base.yml alphabetically")
+    
+    # Sort environment configurations
+    for env_name in ['development', 'production']:
+        env_file = env_dir / f'{env_name}.yml'
+        if env_file.exists():
+            env_config = load_yaml(env_file)
+            save_yaml(env_config, env_file)
+            print(f"Sorted {env_name}.yml alphabetically")
+
 if __name__ == '__main__':
-    sync_configs()
+    sort_configs()  # First sort all configs
+    sync_configs()  # Then sync them
