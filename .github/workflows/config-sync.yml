@@ -121,13 +121,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          # List open PRs with head branch matching auto/config-sync-*
+          # list open PRs with head branch matching auto/config-sync-*
+          echo "Searching for auto/config-sync PRs specifically:"
+          gh pr list --search "head:auto/config-sync-"
+          
           # But exclude the one we just created
+          echo "Attempting to find PRs to close (will save to /tmp/prs_to_close.txt)..."
           gh pr list --search "head:auto/config-sync- is:open" --json number,headRefName,url --jq '.[] | select(.url != "${{ steps.create-pr.outputs.pr_url }}") | [.number, .headRefName] | @tsv' > /tmp/prs_to_close.txt
           
+          echo "Contents of prs_to_close.txt:"
           if [ -s /tmp/prs_to_close.txt ]; then
+            cat /tmp/prs_to_close.txt
             echo "has_prs_to_close=true" >> $GITHUB_OUTPUT
+            echo "Found PRs to close!"
           else
+            echo "File is empty - no PRs to close"
             echo "has_prs_to_close=false" >> $GITHUB_OUTPUT
           fi
 
@@ -138,14 +146,56 @@ jobs:
           NEW_PR_URL: ${{ steps.create-pr.outputs.pr_url }}
         run: |
           echo "Closing older config-sync pull requests..."
+          echo "New PR URL: $NEW_PR_URL"
           
-          NEW_PR_NUM=$(echo "$NEW_PR_URL" | grep -o '[0-9]\+$')
+          # First check if NEW_PR_URL is set
+          if [ -z "$NEW_PR_URL" ]; then
+            echo "WARNING: NEW_PR_URL is not set. Using PR number directly."
+            NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
+          else
+            echo "Extracting PR number from URL: $NEW_PR_URL"
+            NEW_PR_NUM=$(echo "$NEW_PR_URL" | grep -o '[0-9]\+$' || echo "${{ steps.create-pr.outputs.pr_number }}")
+          fi
           
-          while read -r PR_NUM PR_BRANCH; do
-            echo "Closing PR #$PR_NUM from branch $PR_BRANCH"
-            gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
-            echo "$PR_BRANCH" >> /tmp/branches_to_delete.txt
+          echo "New PR number: #$NEW_PR_NUM"
+          echo "PRs to close (from /tmp/prs_to_close.txt):"
+          cat /tmp/prs_to_close.txt
+          
+          echo "Starting to close PRs..."
+          while read -r line; do
+            # Make sure line isn't empty
+            if [ -n "$line" ]; then
+              # Try to parse PR_NUM and PR_BRANCH
+              PR_NUM=$(echo "$line" | awk '{print $1}')
+              PR_BRANCH=$(echo "$line" | awk '{print $2}')
+              
+              echo "Processing line: $line"
+              echo "Parsed: PR #$PR_NUM from branch $PR_BRANCH"
+              
+              if [ -n "$PR_NUM" ]; then
+                echo "Closing PR #$PR_NUM from branch $PR_BRANCH"
+                gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
+                
+                if [ -n "$PR_BRANCH" ]; then
+                  echo "Adding branch $PR_BRANCH to deletion list"
+                  echo "$PR_BRANCH" >> /tmp/branches_to_delete.txt
+                else
+                  echo "WARNING: Could not extract branch name for PR #$PR_NUM"
+                fi
+              else
+                echo "WARNING: Could not extract PR number from line: $line"
+              fi
+            fi
           done < /tmp/prs_to_close.txt
+          
+          echo "Finished closing PRs"
+          
+          if [ -f /tmp/branches_to_delete.txt ]; then
+            echo "Branches queued for deletion:"
+            cat /tmp/branches_to_delete.txt
+          else
+            echo "No branches were queued for deletion"
+          fi
 
       - name: Clean up branches
         if: always() && steps.list-old-prs.outputs.has_prs_to_close == 'true'
