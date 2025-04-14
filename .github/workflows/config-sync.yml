@@ -49,7 +49,9 @@ jobs:
             echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
             echo >> /tmp/pr-body.md
             echo "### Changes Overview" >> /tmp/pr-body.md
-            echo "This automated PR updates environment-specific configurations to align with changes in base.yml." >> /tmp/pr-body.md
+            echo "This automated PR:" >> /tmp/pr-body.md
+            echo "- Sorts all configuration files alphabetically" >> /tmp/pr-body.md
+            echo "- Updates environment-specific configurations to align with changes in base.yml" >> /tmp/pr-body.md
             echo >> /tmp/pr-body.md
             echo "### Diff Details" >> /tmp/pr-body.md
             echo '```diff' >> /tmp/pr-body.md
@@ -70,20 +72,43 @@ jobs:
             git checkout -b "$BRANCH_NAME"
             
             # Commit and push changes to new branch
-            git add config/environments/*.yml
-            git commit -m "chore: sync environment configs with base.yml"
+            git add config/*.yml
+            git commit -m "chore: sort and sync configuration files"
             git push origin "$BRANCH_NAME"
             
             # Create Pull Request using GitHub CLI with error handling
             echo "Creating pull request..."
-            gh pr create \
-              --title "Config Sync: Update environment configurations" \
+            NEW_PR_NUM=""
+            if gh pr create \
+              --title "Config Sync: Sort and update configuration files" \
               --body-file /tmp/pr-body.md \
               --base main \
-              --head "$BRANCH_NAME" || {
-                echo "Failed to create PR, but changes are pushed to branch $BRANCH_NAME"
-                exit 0
-              }
+              --head "$BRANCH_NAME"; then
+              
+              # Get the PR number that was just created
+              NEW_PR_NUM=$(gh pr view "$BRANCH_NAME" --json number --jq '.number')
+              echo "Successfully created PR #$NEW_PR_NUM from branch $BRANCH_NAME"
+              
+              # Now close older PRs and delete their branches
+              echo "Closing existing config-sync pull requests..."
+              EXISTING_PRS=$(gh pr list --head "auto/config-sync-" --json number,headRefName --jq '.[] | [.number, .headRefName] | @tsv')
+              
+              if [ -n "$EXISTING_PRS" ]; then
+                echo "$EXISTING_PRS" | while read -r PR_NUM PR_BRANCH; do
+                  # Skip the PR we just created
+                  if [ "$PR_NUM" != "$NEW_PR_NUM" ]; then
+                    echo "Closing PR #$PR_NUM from branch $PR_BRANCH"
+                    gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
+                    
+                    # Delete the branch
+                    git push origin --delete "$PR_BRANCH" || echo "Could not delete branch $PR_BRANCH"
+                  fi
+                done
+              fi
+            else
+              echo "Failed to create PR, but changes are pushed to branch $BRANCH_NAME"
+              exit 0
+            fi
           fi
 
       - name: Report Status
