@@ -121,94 +121,94 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          # list open PRs with head branch matching auto/config-sync-*
-          echo "Searching for auto/config-sync PRs specifically:"
-          gh pr list --search "head:auto/config-sync-"
+          # List open PRs with head branch matching auto/config-sync-*
+          echo "Looking for PRs with auto/config-sync- branches..."
+          echo "Newly created PR has number #${{ steps.create-pr.outputs.pr_number }}"
           
-          # But exclude the one we just created
-          echo "Attempting to find PRs to close (will save to /tmp/prs_to_close.txt)..."
-          gh pr list --search "head:auto/config-sync- is:open" --json number,headRefName,url --jq '.[] | select(.url != "${{ steps.create-pr.outputs.pr_url }}") | [.number, .headRefName] | @tsv' > /tmp/prs_to_close.txt
+          # Fetch all matching PRs with number and title
+          echo "Searching for auto/config-sync PRs to close:"
+          gh pr list --search "head:auto/config-sync- is:open" --json number,title,headRefName \
+            --template '{{range .}}{{printf "#%v %s (%s)\n" .number .title .headRefName}}{{end}}' > /tmp/found_prs.txt
           
-          echo "Contents of prs_to_close.txt:"
+          # Filter out the one we just created
+          NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
+          grep -v "^#${NEW_PR_NUM} " /tmp/found_prs.txt > /tmp/prs_to_close.txt
+          
+          echo "PRs to close:"
           if [ -s /tmp/prs_to_close.txt ]; then
             cat /tmp/prs_to_close.txt
             echo "has_prs_to_close=true" >> $GITHUB_OUTPUT
-            echo "Found PRs to close!"
           else
-            echo "File is empty - no PRs to close"
+            echo "No PRs to close"
             echo "has_prs_to_close=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Close old PRs
         if: steps.list-old-prs.outputs.has_prs_to_close == 'true'
+        id: close-old-prs
         env:
           GH_TOKEN: ${{ secrets.PAT }}
-          NEW_PR_URL: ${{ steps.create-pr.outputs.pr_url }}
         run: |
           echo "Closing older config-sync pull requests..."
-          echo "New PR URL: $NEW_PR_URL"
+          NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
           
-          # First check if NEW_PR_URL is set
-          if [ -z "$NEW_PR_URL" ]; then
-            echo "WARNING: NEW_PR_URL is not set. Using PR number directly."
-            NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
-          else
-            echo "Extracting PR number from URL: $NEW_PR_URL"
-            NEW_PR_NUM=$(echo "$NEW_PR_URL" | grep -o '[0-9]\+$' || echo "${{ steps.create-pr.outputs.pr_number }}")
-          fi
-          
-          echo "New PR number: #$NEW_PR_NUM"
-          echo "PRs to close (from /tmp/prs_to_close.txt):"
+          echo "New PR: #$NEW_PR_NUM"
+          echo "PRs to close:"
           cat /tmp/prs_to_close.txt
           
-          echo "Starting to close PRs..."
           while read -r line; do
-            # Make sure line isn't empty
             if [ -n "$line" ]; then
-              # Try to parse PR_NUM and PR_BRANCH
-              PR_NUM=$(echo "$line" | awk '{print $1}')
-              PR_BRANCH=$(echo "$line" | awk '{print $2}')
+              PR_NUM=$(echo "$line" | awk '{print $1}' | tr -d '#')
               
-              echo "Processing line: $line"
-              echo "Parsed: PR #$PR_NUM from branch $PR_BRANCH"
-              
-              if [ -n "$PR_NUM" ]; then
-                echo "Closing PR #$PR_NUM from branch $PR_BRANCH"
-                gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
-                
-                if [ -n "$PR_BRANCH" ]; then
-                  echo "Adding branch $PR_BRANCH to deletion list"
-                  echo "$PR_BRANCH" >> /tmp/branches_to_delete.txt
-                else
-                  echo "WARNING: Could not extract branch name for PR #$PR_NUM"
-                fi
-              else
-                echo "WARNING: Could not extract PR number from line: $line"
-              fi
+              echo "Closing PR #$PR_NUM"
+              gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
             fi
           done < /tmp/prs_to_close.txt
           
-          echo "Finished closing PRs"
-          
-          if [ -f /tmp/branches_to_delete.txt ]; then
-            echo "Branches queued for deletion:"
-            cat /tmp/branches_to_delete.txt
-          else
-            echo "No branches were queued for deletion"
-          fi
+          echo "closed_prs=true" >> $GITHUB_OUTPUT
 
-      - name: Clean up branches
-        if: always() && steps.list-old-prs.outputs.has_prs_to_close == 'true'
+      - name: List branches to clean up
+        if: steps.create-pr.outputs.created == 'true'
+        id: list-branches
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          if [ -f /tmp/branches_to_delete.txt ]; then
-            echo "Deleting old branches..."
-            while read -r BRANCH; do
+          echo "Listing branches to clean up..."
+          
+          # List all remote branches with auto/config-sync- prefix
+          echo "All auto/config-sync branches:"
+          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///'
+          
+          # Skip the branch we just created
+          NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
+          echo "Current branch ($NEW_BRANCH) will be preserved"
+          
+          # Find branches to delete
+          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' | grep -v "^$NEW_BRANCH$" > /tmp/branches_to_delete.txt
+          
+          echo "Branches to delete:"
+          if [ -s /tmp/branches_to_delete.txt ]; then
+            cat /tmp/branches_to_delete.txt
+            echo "has_branches_to_delete=true" >> $GITHUB_OUTPUT
+          else
+            echo "No branches to delete"
+            echo "has_branches_to_delete=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Clean up branches
+        if: steps.list-branches.outputs.has_branches_to_delete == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          echo "Deleting old branches..."
+          cat /tmp/branches_to_delete.txt
+          
+          while read -r BRANCH; do
+            if [ -n "$BRANCH" ]; then
               echo "Deleting branch $BRANCH"
               git push origin --delete "$BRANCH" || echo "Could not delete branch $BRANCH"
-            done < /tmp/branches_to_delete.txt
-          fi
+            fi
+          done < /tmp/branches_to_delete.txt
 
       - name: Report Status
         if: always()

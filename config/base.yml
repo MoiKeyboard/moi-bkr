@@ -9,12 +9,16 @@ bot_gateway:
     api_key: ${MARKET_API_KEY}
     tls_verify: true
   telegram:
-    allowed_users:
-    - ${TELEGRAM_ADMIN_ID}
+    allowed_users: ${TELEGRAM_ALLOWED_USERS}
     bot_token: ${TELEGRAM_BOT_TOKEN}
     rate_limit:
       requests_per_minute: 60
     webhook_secret: ${TELEGRAM_WEBHOOK_SECRET}
+ngrok
+  url: ${NGROK_URL}
+market_api:
+  url: ${MARKET_API_URL}
+  key: ${MARKET_API_KEY}
 market_analysis:
   data_dir: .data
   lookback_days: 100
