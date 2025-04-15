@@ -30,6 +30,11 @@ market_analysis:
   - AAPL
   - V
   - AMD
+market_api:
+  key: ${MARKET_API_KEY}
+  url: ${MARKET_API_URL}
+ngrok:
+  url: ${NGROK_URL}
 output:
   file: positions.csv
 tws:
