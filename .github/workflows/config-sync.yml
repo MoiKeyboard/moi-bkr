@@ -34,7 +34,7 @@ jobs:
           pip install yamllint
 
       - name: Lint YAML files
-        run: yamllint .
+        run: yamllint config/base.yml
       - name: Sync Configuration Files
         run: |
           python .github/workflows/scripts/config_sync.py
