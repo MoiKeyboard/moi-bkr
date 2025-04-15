@@ -1,0 +1,30 @@
+name: YAML Linter
+
+on:
+  push:
+    paths:
+      - 'config/**/*.yml'
+      - 'config/**/*.yaml'
+  pull_request:
+    paths:
+      - 'config/**/*.yml'
+      - 'config/**/*.yaml'
+
+jobs:
+  lint-yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install yamllint
+        run: |
+          pip install yamllint
+
+      - name: Lint YAML files
+        run: |
+          yamllint config
