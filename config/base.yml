@@ -4,8 +4,7 @@ bot_gateway:
   log_level: debug
   port: 8001
   security:
-    allowed_hosts:
-    - ${DOMAIN}
+    allowed_hosts: ${DOMAIN}
     api_key: ${MARKET_API_KEY}
     tls_verify: true
   telegram:
@@ -14,7 +13,7 @@ bot_gateway:
     rate_limit:
       requests_per_minute: 60
     webhook_secret: ${TELEGRAM_WEBHOOK_SECRET}
-ngrok
+ngrok:
   url: ${NGROK_URL}
 market_api:
   url: ${MARKET_API_URL}
