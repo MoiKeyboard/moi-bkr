@@ -1,3 +1,4 @@
+---
 bot_gateway:
   domain: localhost
   env_mode: dev
@@ -23,16 +24,16 @@ market_analysis:
   lookback_days: 100
   provider: yahoo
   tickers:
-  - JPM
-  - GOOGL
-  - TSLA
-  - AMZN
-  - NVDA
-  - META
-  - MSFT
-  - AAPL
-  - V
-  - AMD
+    - JPM
+    - GOOGL
+    - TSLA
+    - AMZN
+    - NVDA
+    - META
+    - MSFT
+    - AAPL
+    - V
+    - AMD
 output:
   file: positions.csv
 tws:
