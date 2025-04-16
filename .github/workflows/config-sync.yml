@@ -34,16 +34,34 @@ jobs:
           pip install yamllint
           pip install yq
 
-      - name: Auto-fix YAML
+      - name: Format and Lint YAML
         run: |
-          yamllint --fix config/base.yml || true
-          yq -i '.. style="double"' config/*.yml  # Force double quotes
-          git add '*.yml'
-          git commit -m "chore: auto-fix YAML" || echo "No fixes needed"
-          git push
+          # Lint all YAML files in the config directory and subdirectories
+          echo "Linting all YAML files in ./config..."
+          yamllint config/ || echo "yamllint found issues"
 
-      - name: Lint YAML files
-        run: yamllint config/*.yml
+          # Attempt to force double quotes on all YAML files in config/ and subdirs
+          echo "Applying double quotes with yq to config/**/*.yml..."
+          # Use find to handle potential issues with large numbers of files or complex paths
+          find config -name '*.yml' -exec yq -i -y '.. style="double"' {} + || echo "yq command failed for some files"
+
+          # Lint again after yq changes
+          echo "Re-linting all config YAML files after yq..."
+          yamllint config/ || echo "yamllint found issues after yq"
+
+          # Check for changes before committing
+          echo "Checking for formatting changes..."
+          if [[ $(git status --porcelain config/**/*.yml) ]]; then
+            echo "Committing formatting changes..."
+            git add config/**/*.yml
+            git commit -m "chore: format YAML files"
+            # Only push if there were changes committed
+            if git rev-parse HEAD > /dev/null 2>&1; then
+              git push
+            fi
+          else
+            echo "No formatting changes to commit"
+          fi
 
       - name: Sync Configuration Files
         run: |
@@ -136,18 +154,17 @@ jobs:
         run: |
           # List open PRs with head branch matching auto/config-sync-*
           echo "Looking for PRs with auto/config-sync- branches..."
-          echo "Newly created PR has number #${{ steps.create-pr.outputs.pr_number }}"
-          
-          # Fetch all matching PRs with number and title
-          echo "Searching for auto/config-sync PRs to close:"
-          gh pr list --search "head:auto/config-sync- is:open" --json number,title,headRefName \
-            --template '{{range .}}{{printf "#%v %s (%s)\n" .number .title .headRefName}}{{end}}' > /tmp/found_prs.txt
-          
-          # Filter out the one we just created
           NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
-          grep -v "^#${NEW_PR_NUM} " /tmp/found_prs.txt > /tmp/prs_to_close.txt
-          
-          echo "PRs to close:"
+          echo "Newly created PR has number #${NEW_PR_NUM}"
+
+          # Use simpler gh pr list and filter with grep/awk
+          echo "Searching for auto/config-sync PRs to close:"
+          gh pr list --state open --search "head:auto/config-sync-" > /tmp/found_prs.txt
+
+          # Filter out the one we just created
+          grep -v "	#${NEW_PR_NUM}	" /tmp/found_prs.txt > /tmp/prs_to_close.txt # Note: using tab separators common in gh output
+
+          echo "PRs to close (from /tmp/prs_to_close.txt):"
           if [ -s /tmp/prs_to_close.txt ]; then
             cat /tmp/prs_to_close.txt
             echo "has_prs_to_close=true" >> $GITHUB_OUTPUT
@@ -164,20 +181,20 @@ jobs:
         run: |
           echo "Closing older config-sync pull requests..."
           NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
-          
+
           echo "New PR: #$NEW_PR_NUM"
           echo "PRs to close:"
           cat /tmp/prs_to_close.txt
-          
-          while read -r line; do
-            if [ -n "$line" ]; then
-              PR_NUM=$(echo "$line" | awk '{print $1}' | tr -d '#')
-              
-              echo "Closing PR #$PR_NUM"
-              gh pr close "$PR_NUM" --comment "Superseded by PR #$NEW_PR_NUM"
+
+          while IFS=$'\t' read -r PR_NUM TITLE BRANCH MERGE_STATUS; do # Use IFS to read tab-separated values
+            if [ -n "$PR_NUM" ]; then
+              # PR_NUM might have # prefix from some gh versions, remove it
+              PR_NUM_CLEAN=$(echo "$PR_NUM" | tr -d '#')
+              echo "Closing PR #$PR_NUM_CLEAN (Title: $TITLE, Branch: $BRANCH)"
+              gh pr close "$PR_NUM_CLEAN" --comment "Superseded by PR #$NEW_PR_NUM"
             fi
           done < /tmp/prs_to_close.txt
-          
+
           echo "closed_prs=true" >> $GITHUB_OUTPUT
 
       - name: List branches to clean up
