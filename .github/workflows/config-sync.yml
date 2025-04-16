@@ -32,9 +32,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyyaml
           pip install yamllint
+          pip install yq
+
+      - name: Auto-fix YAML
+        run: |
+          yamllint --fix config/base.yml || true
+          yq -i '.. style="double"' config/*.yml  # Force double quotes
+          git add '*.yml'
+          git commit -m "chore: auto-fix YAML" || echo "No fixes needed"
+          git push
 
       - name: Lint YAML files
-        run: yamllint config/base.yml
+        run: yamllint config/*.yml
+
       - name: Sync Configuration Files
         run: |
           python .github/workflows/scripts/config_sync.py
