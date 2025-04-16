@@ -204,19 +204,23 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
           echo "Listing branches to clean up..."
-          
+          rm -f /tmp/branches_to_delete.txt # Ensure file is clean
+
           # List all remote branches with auto/config-sync- prefix
-          echo "All auto/config-sync branches:"
-          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///'
-          
+          echo "All relevant remote branches:"
+          ALL_BRANCHES=$(git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///')
+          echo "$ALL_BRANCHES"
+
           # Skip the branch we just created
           NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
-          echo "Current branch ($NEW_BRANCH) will be preserved"
-          
-          # Find branches to delete
-          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' | grep -v "^$NEW_BRANCH$" > /tmp/branches_to_delete.txt
-          
-          echo "Branches to delete:"
+          echo "Current branch ($NEW_BRANCH) will be preserved."
+
+          # Find branches to delete using exact, full-line matching
+          echo "Filtering out the current branch..."
+          # Use printf for safer printing and grep -Fxv for exact fixed-string exclusion
+          printf '%s\n' "$ALL_BRANCHES" | grep -Fxv "$NEW_BRANCH" > /tmp/branches_to_delete.txt
+
+          echo "Branches to delete (from /tmp/branches_to_delete.txt):"
           if [ -s /tmp/branches_to_delete.txt ]; then
             cat /tmp/branches_to_delete.txt
             echo "has_branches_to_delete=true" >> $GITHUB_OUTPUT
@@ -232,7 +236,7 @@ jobs:
         run: |
           echo "Deleting old branches..."
           cat /tmp/branches_to_delete.txt
-          
+
           while read -r BRANCH; do
             if [ -n "$BRANCH" ]; then
               echo "Deleting branch $BRANCH"
