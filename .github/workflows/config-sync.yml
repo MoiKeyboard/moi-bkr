@@ -161,7 +161,7 @@ jobs:
           echo "Searching for auto/config-sync PRs to close:"
           gh pr list --state open --search "head:auto/config-sync-" > /tmp/found_prs.txt || true
 
-          # Filter out the one we just created (using || true to prevent exit code 1 when no matches)
+          # Filter out the one we just created
           grep -v "	#${NEW_PR_NUM}	" /tmp/found_prs.txt > /tmp/prs_to_close.txt || true
 
           echo "PRs to close (from /tmp/prs_to_close.txt):"
@@ -208,17 +208,15 @@ jobs:
 
           # List all remote branches with auto/config-sync- prefix
           echo "All relevant remote branches:"
-          ALL_BRANCHES=$(git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///')
-          echo "$ALL_BRANCHES"
+          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' > /tmp/all_branches.txt || true
 
           # Skip the branch we just created
           NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
           echo "Current branch ($NEW_BRANCH) will be preserved."
 
-          # Find branches to delete using exact, full-line matching
+          # Filter out the current branch (using grep -v for inverse match)
           echo "Filtering out the current branch..."
-          # Use printf for safer printing and grep -Fxv for exact fixed-string exclusion
-          printf '%s\n' "$ALL_BRANCHES" | grep -Fxv "$NEW_BRANCH" > /tmp/branches_to_delete.txt
+          grep -Fxv "$NEW_BRANCH" /tmp/all_branches.txt > /tmp/branches_to_delete.txt || true
 
           echo "Branches to delete (from /tmp/branches_to_delete.txt):"
           if [ -s /tmp/branches_to_delete.txt ]; then
