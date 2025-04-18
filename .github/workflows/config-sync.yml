@@ -55,18 +55,18 @@ jobs:
           # yamllint config/ || echo "yamllint found issues after yq"
 
           # Check for changes before committing
-          echo "Checking for formatting changes..."
-          if [[ $(git status --porcelain config/**/*.yml) ]]; then
-            echo "Committing formatting changes..."
-            git add config/**/*.yml
-            git commit -m "chore: format YAML files"
-            # Only push if there were changes committed
-            if git rev-parse HEAD > /dev/null 2>&1; then
-              git push
-            fi
-          else
-            echo "No formatting changes to commit"
-          fi
+          # echo "Checking for formatting changes..."
+          # if [[ $(git status --porcelain config/**/*.yml) ]]; then
+          #   echo "Committing formatting changes..."
+          #   git add config/**/*.yml
+          #   git commit -m "chore: format YAML files"
+          #   # Only push if there were changes committed
+          #   if git rev-parse HEAD > /dev/null 2>&1; then
+          #     git push
+          #   fi
+          # else
+          #   echo "No formatting changes to commit"
+          # fi
 
       - name: Sync Configuration Files
         run: |
