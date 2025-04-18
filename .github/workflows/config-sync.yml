@@ -33,21 +33,26 @@ jobs:
           pip install pyyaml
           pip install yamllint
           pip install yq
+          npm install -g prettier @prettier/plugin-yaml  # Add prettier with YAML plugin
 
       - name: Format and Lint YAML
         run: |
+          # Format all YAML files using prettier
+          echo "Formatting YAML files with prettier..."
+          prettier --write "config/**/*.yml"
+
           # Lint all YAML files in the config directory and subdirectories
           echo "Linting all YAML files in ./config..."
           yamllint config/ || echo "yamllint found issues"
 
-          # Attempt to force double quotes on all YAML files in config/ and subdirs
-          echo "Applying double quotes with yq to config/**/*.yml..."
-          # Use find to handle potential issues with large numbers of files or complex paths
-          find config -name '*.yml' -exec yq -i -y '.. style="double"' {} + || echo "yq command failed for some files"
+          # # Attempt to force double quotes on all YAML files in config/ and subdirs
+          # echo "Applying double quotes with yq to config/**/*.yml..."
+          # # Use find to handle potential issues with large numbers of files or complex paths
+          # find config -name '*.yml' -exec yq -i -y '.. style="double"' {} + || echo "yq command failed for some files"
 
-          # Lint again after yq changes
-          echo "Re-linting all config YAML files after yq..."
-          yamllint config/ || echo "yamllint found issues after yq"
+          # # Lint again after yq changes
+          # echo "Re-linting all config YAML files after yq..."
+          # yamllint config/ || echo "yamllint found issues after yq"
 
           # Check for changes before committing
           echo "Checking for formatting changes..."
