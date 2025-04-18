@@ -188,12 +188,31 @@ jobs:
           echo "Listing branches to clean up..."
           rm -f /tmp/branches_to_delete.txt # Ensure file is clean
 
+          # Fetch all remote branches
+          git fetch origin
+
           # Skip the branch we just created
           NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
           echo "Current branch ($NEW_BRANCH) will be preserved."
 
-          # Get all branches and filter, excluding the current one
-          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' | grep -v "^${NEW_BRANCH}$" > /tmp/branches_to_delete.txt || true
+          # Debug: Show all remote branches
+          echo "All remote branches:"
+          git branch -r
+
+          # Debug: Show branches after first grep
+          echo "Branches matching auto/config-sync-:"
+          git branch -r | grep "origin/auto/config-sync-" || true
+
+          # Debug: Show branches after sed
+          echo "After removing origin/ prefix:"
+          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' || true
+
+          # Get all branches and filter, excluding the current one (with debug echo)
+          echo "Attempting to exclude: ^${NEW_BRANCH}$"
+          git branch -r | \
+            grep "origin/auto/config-sync-" | \
+            sed 's/origin\///' | \
+            grep -Fxv "${NEW_BRANCH}" > /tmp/branches_to_delete.txt || true
 
           echo "Branches to delete (from /tmp/branches_to_delete.txt):"
           if [ -s /tmp/branches_to_delete.txt ]; then
