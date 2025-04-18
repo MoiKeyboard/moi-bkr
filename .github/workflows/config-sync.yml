@@ -45,29 +45,6 @@ jobs:
           echo "Linting all YAML files in ./config..."
           yamllint config/ || echo "yamllint found issues"
 
-          # # Attempt to force double quotes on all YAML files in config/ and subdirs
-          # echo "Applying double quotes with yq to config/**/*.yml..."
-          # # Use find to handle potential issues with large numbers of files or complex paths
-          # find config -name '*.yml' -exec yq -i -y '.. style="double"' {} + || echo "yq command failed for some files"
-
-          # # Lint again after yq changes
-          # echo "Re-linting all config YAML files after yq..."
-          # yamllint config/ || echo "yamllint found issues after yq"
-
-          # Check for changes before committing
-          # echo "Checking for formatting changes..."
-          # if [[ $(git status --porcelain config/**/*.yml) ]]; then
-          #   echo "Committing formatting changes..."
-          #   git add config/**/*.yml
-          #   git commit -m "chore: format YAML files"
-          #   # Only push if there were changes committed
-          #   if git rev-parse HEAD > /dev/null 2>&1; then
-          #     git push
-          #   fi
-          # else
-          #   echo "No formatting changes to commit"
-          # fi
-
       - name: Sync Configuration Files
         run: |
           python .github/workflows/scripts/config_sync.py
@@ -211,17 +188,12 @@ jobs:
           echo "Listing branches to clean up..."
           rm -f /tmp/branches_to_delete.txt # Ensure file is clean
 
-          # List all remote branches with auto/config-sync- prefix
-          echo "All relevant remote branches:"
-          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' > /tmp/all_branches.txt || true
-
           # Skip the branch we just created
           NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
           echo "Current branch ($NEW_BRANCH) will be preserved."
 
-          # Filter out the current branch (using grep -v for inverse match)
-          echo "Filtering out the current branch..."
-          grep -Fxv "$NEW_BRANCH" /tmp/all_branches.txt > /tmp/branches_to_delete.txt || true
+          # Get all branches and filter, excluding the current one
+          git branch -r | grep "origin/auto/config-sync-" | sed 's/origin\///' | grep -v "^${NEW_BRANCH}$" > /tmp/branches_to_delete.txt || true
 
           echo "Branches to delete (from /tmp/branches_to_delete.txt):"
           if [ -s /tmp/branches_to_delete.txt ]; then
