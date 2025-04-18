@@ -3,3 +3,41 @@ bot_gateway:
   env_mode: prod
   log_level: info
   port: 8001
+  security:
+    allowed_hosts: ${DOMAIN}
+    api_key: ${MARKET_API_KEY}
+    tls_verify: true
+  telegram:
+    allowed_users: ${TELEGRAM_ALLOWED_USERS}
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    rate_limit:
+      requests_per_minute: 60
+    webhook_secret: ${TELEGRAM_WEBHOOK_SECRET}
+market_analysis:
+  data_dir: .data
+  lookback_days: 100
+  provider: yahoo
+  tickers:
+  - JPM
+  - GOOGL
+  - TSLA
+  - AMZN
+  - NVDA
+  - META
+  - MSFT
+  - AAPL
+  - V
+  - AMD
+market_api:
+  key: ${MARKET_API_KEY}
+  url: ${MARKET_API_URL}
+ngrok:
+  url: ${NGROK_URL}
+output:
+  file: positions.csv
+tws:
+  client_id: 1
+  host: host.docker.internal
+  password: ${TWS_PASSWORD}
+  port: 7497
+  user: rnbbop246
