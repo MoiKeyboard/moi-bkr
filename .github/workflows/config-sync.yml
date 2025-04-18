@@ -159,10 +159,10 @@ jobs:
 
           # Use simpler gh pr list and filter with grep/awk
           echo "Searching for auto/config-sync PRs to close:"
-          gh pr list --state open --search "head:auto/config-sync-" > /tmp/found_prs.txt
+          gh pr list --state open --search "head:auto/config-sync-" > /tmp/found_prs.txt || true
 
-          # Filter out the one we just created
-          grep -v "	#${NEW_PR_NUM}	" /tmp/found_prs.txt > /tmp/prs_to_close.txt # Note: using tab separators common in gh output
+          # Filter out the one we just created (using || true to prevent exit code 1 when no matches)
+          grep -v "	#${NEW_PR_NUM}	" /tmp/found_prs.txt > /tmp/prs_to_close.txt || true
 
           echo "PRs to close (from /tmp/prs_to_close.txt):"
           if [ -s /tmp/prs_to_close.txt ]; then
