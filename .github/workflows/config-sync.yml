@@ -33,7 +33,7 @@ jobs:
           pip install pyyaml
           pip install yamllint
           pip install yq
-          npm install -g prettier @prettier/plugin-yaml  # Add prettier with YAML plugin
+          npm install -g prettier prettier-plugin-yaml
 
       - name: Format and Lint YAML
         run: |
