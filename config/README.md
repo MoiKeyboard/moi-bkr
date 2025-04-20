@@ -5,15 +5,17 @@
   - [File Structure](#file-structure)
   - [Key Files](#key-files)
     - [`base.yml`](#baseyml)
+    - [`.sops.yaml`](#sopsyaml)
     - [`base.env`](#baseenv)
     - [`schema.yml`](#schemayml)
     - [`Environment Files`](#environment-files)
   - [Usage Examples](#usage-examples)
   - [Setting Up Environments](#setting-up-environments)
   - [Validation](#validation)
-  - [Automated Configuration Sync](#automated-configuration-sync)
-    - [Key Features](#key-features)
-    - [Workflow Details](#workflow-details)
+  - [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
+    - [Setup Instructions](#setup-instructions)
+    - [WSL-Specific Considerations](#wsl-specific-considerations)
+    - [Troubleshooting WSL Setup](#troubleshooting-wsl-setup)
 
 ## Objectives
 
@@ -51,6 +53,7 @@ Following the [12-factor app](https://12factor.net/) methodology, our configurat
 config/
 ├── base.env # Default secret template
 ├── base.yml # Default configuration value
+├── sops.yml # Configuration file for SOPS
 ├── schema.yml # Validation rules
 ├── environments/
 │ ├── development.yml # Dev overrides (non-secrets)
@@ -63,14 +66,16 @@ config/
 ## Key Files
 
 ### `base.yml`
-- Contains all default configuration
-- Use `${VAR}` notation for secrets (e.g., `${DB_PASSWORD}`)
-- Template for generating `environments/[env].yml`
-- Metadata annotations:
-   ```yaml
-   port: 8000          # @min: 1024 @max: 65535
-   ssl: false          # @type: boolean
-   ```
+- Contains all configuration including encrypted secrets
+- Secrets are encrypted using SOPS
+- Example of encrypted value:
+  ```yaml
+  api_key: ENC[AES256_GCM,data=...] # Encrypted secret
+  ```
+
+### `.sops.yaml`
+- SOPS configuration file defining encryption rules
+- Specifies which values to encrypt and which keys to use
 
 ### `base.env`
 - Contains all default secrets
@@ -122,24 +127,117 @@ echo "DB_PASSWORD=$PROD_SECRET" > development.env
 TODO .........validate on schema.yml.........
 ```
 
-## Automated Configuration Sync
+## Secret Management with Secrets OPerationS (SOPS)
 
-This repository implements automatic synchronization of environment-specific configuration files with changes to the base configuration. When changes are made to `base.yml`, a GitHub Actions workflow automatically:
+### Setup Instructions
+To install sops, download one of the pre-built binaries provided for your platform from the artifacts attached to the releases - [SOPS release](https://github.com/getsops/sops/releases)
 
-1. **Formats and lints** all YAML configuration files for consistency
-2. **Synchronizes** environment-specific configurations with the base configuration
-3. **Creates a pull request** with the synchronized changes
-4. **Cleans up** old branches and pull requests
+1. **Install SOPS**:
+   ```bash
+   # Download SOPS binary
+   wget https://github.com/mozilla/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
 
-### Key Features
+   # Make binary executable
+   chmod +x sops-v3.10.2.linux.amd64
 
-- **Formatting**: All YAML files use double quotes consistently
-- **Synchronization**: Environment-specific values are preserved while inheriting updates from base
-- **Change Review**: Pull requests include detailed diff information for easy review
-- **Automation**: No manual synchronization required, reducing configuration drift
+   # Move binary into your PATH
+   mkdir -p ~/.local/bin  # Create user-specific bin directory
+   mv sops-v3.10.2.linux.amd64 ~/.local/bin/sops
 
-### Workflow Details
+   # Add to PATH if not already there
+   echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
+   source ~/.bashrc
 
-The configuration sync workflow is located at [`.github/workflows/config-sync.yml`](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml) and runs automatically when changes are made to `config/base.yml`.
+   # Verify installation
+   sops --version
+   ```
 
-You can also [manually trigger](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml) the workflow if needed.
+2. **Generate OpenSSL Keys in WSL**:
+   ```bash
+   # Navigate to Windows certs directory through WSL path
+   cd /mnt/c/Users/qwek3/Workspace/IBKR/certs
+
+   # Generate RSA key pair for SOPS
+   openssl genrsa -out sops.key 2048
+   openssl rsa -in sops.key -pubout -out sops.pub
+
+   # Set permissions (note: Windows permissions work differently)
+   chmod 600 sops.key
+   chmod 644 sops.pub
+   ```
+
+3. **Configure SOPS**:
+   In `config/.sops.yaml`, add provide details for SOPS configuration
+   ```yaml
+   creation_rules:
+     - path_regex: config/.*\.yml$
+       pgp: >-
+         $(cat certs/sops.pub | base64 -w0)
+       encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'
+   ```
+
+4. **Set Up Environment in WSL**:
+   ```bash
+   # Add to your ~/.bashrc or ~/.zshrc
+   echo 'export SOPS_PGP_FP=$(openssl rsa -in /mnt/c/Users/qwek3/Workspace/IBKR/certs/sops.key -pubout -outform DER | sha1sum | cut -d" " -f1)' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+### WSL-Specific Considerations
+
+1. **Path Handling**:
+   - Use `/mnt/c/...` paths to access Windows files
+   - Consider creating symlinks for frequently accessed directories
+   - Be aware of line ending differences (Windows CRLF vs Unix LF)
+
+2. **File Permissions**:
+   - WSL and Windows handle permissions differently
+   - Key files created in Windows might need permission adjustments in WSL
+   - Use `chmod` in WSL context for proper security
+
+3. **Working with Secrets in WSL**:
+   ```bash
+   # Encrypt values (from WSL)
+   cd /mnt/c/Users/qwek3/Workspace/IBKR
+   sops -e -i config/base.yml
+
+   # Edit encrypted files
+   sops config/base.yml
+
+   # Decrypt for use
+   sops -d config/base.yml
+   ```
+
+4. **Integration with Existing SSL Setup**:
+   ```bash
+   # Verify OpenSSL access to existing certificates
+   ls -l /mnt/c/Users/qwek3/Workspace/IBKR/certs/wildcard.crt
+   ls -l /mnt/c/Users/qwek3/Workspace/IBKR/certs/wildcard.key
+   ```
+
+### Troubleshooting WSL Setup
+
+1. **Permission Issues**:
+   ```bash
+   # If you encounter permission errors
+   sudo chown $USER:$USER ~/.local/bin/sops
+   sudo chown $USER:$USER /mnt/c/Users/qwek3/Workspace/IBKR/certs/sops.*
+   ```
+
+2. **Path Issues**:
+   ```bash
+   # Verify SOPS is in PATH
+   which sops
+   
+   # If not found, ensure ~/.local/bin is in PATH
+   echo $PATH
+   ```
+
+3. **OpenSSL Verification**:
+   ```bash
+   # Verify OpenSSL installation
+   openssl version
+   
+   # Test key generation
+   openssl genrsa -out test.key 2048 && rm test.key
+   ```
