@@ -1,5 +1,6 @@
-   creation_rules:
-     - path_regex: config/.*\.yml$
-       pgp: >-
-         $(cat /mnt/c/Users/qwek3/Workspace/IBKR/certs/sops.pub | base64 -w0)
-       encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'
+creation_rules:
+  - path_regex: base\.yml$
+    age: >-
+      age1246nt5k0uh6vhh0kl5u7ne7vtctf6dezwq5dan380zas82muvehs3ckcd5
+    encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'
+#  $(cat certs/sops.age | grep "^# public key: " | cut -d' ' -f4)

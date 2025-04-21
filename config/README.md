@@ -14,8 +14,9 @@
   - [Validation](#validation)
   - [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
     - [Setup Instructions](#setup-instructions)
+    - [Working with SOPS](#working-with-sops)
     - [WSL-Specific Considerations](#wsl-specific-considerations)
-    - [Troubleshooting WSL Setup](#troubleshooting-wsl-setup)
+    - [Troubleshooting](#troubleshooting)
 
 ## Objectives
 
@@ -130,19 +131,25 @@ TODO .........validate on schema.yml.........
 ## Secret Management with Secrets OPerationS (SOPS)
 
 ### Setup Instructions
-To install sops, download one of the pre-built binaries provided for your platform from the artifacts attached to the releases - [SOPS release](https://github.com/getsops/sops/releases)
+To install SOPS and age, download one of the pre-built binaries provided for your platform from the artifacts attached to the releases 
+- [SOPS release](https://github.com/getsops/sops/releases/latest)
+- [age release](https://github.com/FiloSottile/age/releases/latest)
 
-1. **Install SOPS**:
+1. **Install SOPS & age**:
    ```bash
    # Download SOPS binary
    wget https://github.com/mozilla/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
 
-   # Make binary executable
-   chmod +x sops-v3.10.2.linux.amd64
+   # Download age
+   wget https://github.com/FiloSottile/age/releases/latest/download/age-v1.2.1-linux-amd64.tar.gz
+   tar xf age-v1.2.1-linux-amd64.tar.gz
 
-   # Move binary into your PATH
+   # Move binaries into your PATH
    mkdir -p ~/.local/bin  # Create user-specific bin directory
+   chmod -R 755 ~/.local/bin
    mv sops-v3.10.2.linux.amd64 ~/.local/bin/sops
+   mv age/age ~/.local/bin/
+   mv age/age-keygen ~/.local/bin/
 
    # Add to PATH if not already there
    echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
@@ -152,35 +159,45 @@ To install sops, download one of the pre-built binaries provided for your platfo
    sops --version
    ```
 
-2. **Generate OpenSSL Keys in WSL**:
+2. **Generate age Keys**:
    ```bash
-   # Navigate to Windows certs directory through WSL path
-   cd /mnt/c/Users/qwek3/Workspace/IBKR/certs
-
-   # Generate RSA key pair for SOPS
-   openssl genrsa -out sops.key 2048
-   openssl rsa -in sops.key -pubout -out sops.pub
-
-   # Set permissions (note: Windows permissions work differently)
-   chmod 600 sops.key
-   chmod 644 sops.pub
+   # Generate a key pair
+   age-keygen -o certs/sops.age
+   # This creates a file containing both public and private key
+   # Public key starts with "age1"
+   # Private key starts with "AGE-SECRET-KEY-"
    ```
 
 3. **Configure SOPS**:
-   In `config/.sops.yaml`, add provide details for SOPS configuration
+   Create `config/.sops.yaml` with your age public key:
    ```yaml
    creation_rules:
-     - path_regex: config/.*\.yml$
-       pgp: >-
-         $(cat certs/sops.pub | base64 -w0)
+     - path_regex: base\.yml$
+       age: age1246nt5k0uh6vhh0kl5u7ne7vtctf6dezwq5dan380zas82muvehs3ckcd5
        encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'
    ```
 
 4. **Set Up Environment in WSL**:
    ```bash
-   # Add to your ~/.bashrc or ~/.zshrc
-   echo 'export SOPS_PGP_FP=$(openssl rsa -in /mnt/c/Users/qwek3/Workspace/IBKR/certs/sops.key -pubout -outform DER | sha1sum | cut -d" " -f1)' >> ~/.bashrc
+   # Add to your ~/.bashrc
+   echo 'export SOPS_AGE_KEY_FILE=certs/sops.age' >> ~/.bashrc
    source ~/.bashrc
+   ```
+
+### Working with SOPS
+1. **Encrypt Values**:
+   ```bash
+   # Encrypt using SOPS config file
+   sops --config config/.sops.yaml \
+        --input-type yaml \
+        --output-type yaml \
+        encrypt -i config/base.yml
+
+   # Edit encrypted files
+   sops --config config/.sops.yaml edit config/base.yml
+
+   # Decrypt for use
+   sops --config config/.sops.yaml decrypt config/base.yml
    ```
 
 ### WSL-Specific Considerations
@@ -195,28 +212,7 @@ To install sops, download one of the pre-built binaries provided for your platfo
    - Key files created in Windows might need permission adjustments in WSL
    - Use `chmod` in WSL context for proper security
 
-3. **Working with Secrets in WSL**:
-   ```bash
-   # Encrypt values (from WSL)
-   cd /mnt/c/Users/qwek3/Workspace/IBKR
-   sops -e -i config/base.yml
-
-   # Edit encrypted files
-   sops config/base.yml
-
-   # Decrypt for use
-   sops -d config/base.yml
-   ```
-
-4. **Integration with Existing SSL Setup**:
-   ```bash
-   # Verify OpenSSL access to existing certificates
-   ls -l /mnt/c/Users/qwek3/Workspace/IBKR/certs/wildcard.crt
-   ls -l /mnt/c/Users/qwek3/Workspace/IBKR/certs/wildcard.key
-   ```
-
-### Troubleshooting WSL Setup
-
+### Troubleshooting
 1. **Permission Issues**:
    ```bash
    # If you encounter permission errors
@@ -233,11 +229,44 @@ To install sops, download one of the pre-built binaries provided for your platfo
    echo $PATH
    ```
 
-3. **OpenSSL Verification**:
+3. **SOPS Environment Variable Conflicts**:
    ```bash
-   # Verify OpenSSL installation
-   openssl version
+   # Check for conflicting SOPS environment variables
+   env | grep -i sops
+
+   # Common issues:
+   # - SOPS_PGP_FP will force PGP encryption even with age config
+   # - Multiple SOPS_PGP_FP entries in environment
    
-   # Test key generation
-   openssl genrsa -out test.key 2048 && rm test.key
+   # Clean up environment variables
+   unset SOPS_PGP_FP        # Remove PGP configuration
+   unset SOPS_GPG_EXEC      # Remove GPG executable path
+   unset SOPS_GPG_KEYSERVER # Remove GPG keyserver
    ```
+
+4. **SOPS Configuration Priority**:
+   - Environment variables (`SOPS_PGP_FP`) take precedence over `.sops.yaml`
+   - PGP keys configured in environment will be used even if age is configured
+   - To use age exclusively:
+     - Ensure no PGP environment variables are set
+     - Only configure age in `.sops.yaml`
+     - Set `SOPS_AGE_KEY_FILE` for decryption
+
+5. **Verifying SOPS Configuration**:
+   ```bash
+   # Check which keys SOPS is using
+   sops --config config/.sops.yaml \
+        --input-type yaml \
+        --output-type yaml \
+        --verbose \
+        encrypt -i config/base.yml
+
+   # Verify age key is available
+   echo $SOPS_AGE_KEY_FILE
+   cat $SOPS_AGE_KEY_FILE | grep "^# public key:"
+   ```
+
+6. **Common Errors**:
+   - "failed to encrypt new data key with master key" → PGP key in environment
+   - "no master keys found" → age key not configured correctly
+   - "could not get data key" → missing or invalid age key file
