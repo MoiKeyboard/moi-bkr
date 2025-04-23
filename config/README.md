@@ -130,14 +130,19 @@ TODO .........validate on schema.yml.........
 ```
 
 ## Secret Management with Secrets OPerationS (SOPS)
-SOPS encrypts individual values within files (like YAML, ENV, JSON), making it possible to track secret changes, share encrypted configurations across teams, and maintain different environments while keeping the file structure readable. In this project, we use SOPS with *age* encryption to manage our environment variables and sensitive configurations.
+SOPS encrypts individual values within structured files (YAML, JSON, ENV, etc.), enabling secure version control of secrets. Key benefits:
+- GitOps-friendly: Encrypted secrets can be safely committed to Git, allowing change tracking and collaboration.
+- Environment-aware: Supports multi-environment configurations while preserving file readability.
+- Toolchain integration: Designed for CI/CD pipelines and infrastructure-as-code workflows.
+
+This project uses SOPS with *age* encryption for managing environment variables and sensitive configurations, combining strong security with GitOps principles.
 
 ### Setup Instructions
 To install SOPS and *age*, download one of the pre-built binaries provided for your platform from the artifacts attached to the releases 
 - [SOPS release](https://github.com/getsops/sops/releases/latest)
 - [age release](https://github.com/FiloSottile/age/releases/latest)
 
-1. **Install SOPS & age**:
+1. **Install SOPS & *age***:
    ```bash
    # Download SOPS binary
    wget https://github.com/mozilla/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
@@ -161,7 +166,7 @@ To install SOPS and *age*, download one of the pre-built binaries provided for y
    sops --version
    ```
 
-2. **Generate age Keys**:
+2. **Generate *age* Keys**:
    ```bash
    # Generate a key pair
    age-keygen -o certs/sops.age
