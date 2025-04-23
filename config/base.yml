@@ -1,4 +1,3 @@
----
 bot_gateway:
   domain: localhost
   env_mode: dev
@@ -14,26 +13,26 @@ bot_gateway:
     rate_limit:
       requests_per_minute: 60
     webhook_secret: ${TELEGRAM_WEBHOOK_SECRET}
-ngrok:
-  url: ${NGROK_URL}
-market_api:
-  url: ${MARKET_API_URL}
-  key: ${MARKET_API_KEY}
 market_analysis:
   data_dir: .data
   lookback_days: 100
   provider: yahoo
   tickers:
-    - JPM
-    - GOOGL
-    - TSLA
-    - AMZN
-    - NVDA
-    - META
-    - MSFT
-    - AAPL
-    - V
-    - AMD
+  - JPM
+  - GOOGL
+  - TSLA
+  - AMZN
+  - NVDA
+  - META
+  - MSFT
+  - AAPL
+  - V
+  - AMD
+market_api:
+  key: ${MARKET_API_KEY}
+  url: ${MARKET_API_URL}
+ngrok:
+  url: ${NGROK_URL}
 output:
   file: positions.csv
 tws:
