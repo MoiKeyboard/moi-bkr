@@ -60,15 +60,11 @@ def read_existing_env_file(env_file: Path) -> List[str]:
         env_file: Path to the env file
         
     Returns:
-        List of lines from the existing file, or default header if file doesn't exist
+        List of lines from the existing file
     """
     if not env_file.exists():
-        return [
-            "# Environment variables for configuration",
-            "# Generated from base.yml",
-            "# This file serves as a template for environment-specific .env files",
-            ""
-        ]
+        print(f"Warning: {env_file} does not exist, creating new file")
+        return []
     
     with open(env_file, 'r') as f:
         return [line.rstrip() for line in f]
@@ -96,15 +92,13 @@ def process_env_line(line: str, required_vars: Set[str]) -> str:
     # Extract variable name
     var_name = var_assignment.split('=')[0].strip()
     
-    # If variable is not required and doesn't already have the unused comment
+    # Log if variable is not referenced in base.yml
     if var_name and var_name not in required_vars:
-        if "Variable not referenced in base.yml" not in existing_comment:
-            return f"{var_assignment} ## Variable not referenced in base.yml"
-        return line
+        print(f"Warning: ${var_name} is not referenced in base.yml")
     
     # If there's an existing comment, ensure there's a space before it
-    if existing_comment:
-        return f"{var_assignment} # {existing_comment}"
+    # if existing_comment:
+    #     return f"{var_assignment} # {existing_comment}"
     
     return var_assignment
 
@@ -178,7 +172,14 @@ def generate_base_env() -> None:
     """
     Main function to generate base.env from base.yml environment variables.
     """
-    config_dir = Path('config')
+   # Get the script's directory and project root
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent.parent.parent  # Go up to IBKR root
+    
+    # Use absolute paths
+    config_dir = project_root / 'config'
+    config_dir.mkdir(exist_ok=True)  # Create config dir if it doesn't exist
+    
     base_yml = config_dir / 'base.yml'
     base_env = config_dir / 'base.env'
     

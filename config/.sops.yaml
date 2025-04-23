@@ -1,5 +1,5 @@
 creation_rules:
-  - path_regex: base\.yml$
+  - path_regex: .*\.env$
     age: >-
       age1246nt5k0uh6vhh0kl5u7ne7vtctf6dezwq5dan380zas82muvehs3ckcd5
-    encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'
+    # encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'

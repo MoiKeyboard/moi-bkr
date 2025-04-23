@@ -54,7 +54,7 @@ Following the [12-factor app](https://12factor.net/) methodology, our configurat
 config/
 ├── base.env # Default secret template
 ├── base.yml # Default configuration value
-├── sops.yml # Configuration file for SOPS
+├── .sops.yml # Configuration file for SOPS
 ├── schema.yml # Validation rules
 ├── environments/
 │ ├── development.yml # Dev overrides (non-secrets)
@@ -76,10 +76,12 @@ config/
 
 ### `.sops.yaml`
 - SOPS configuration file defining encryption rules
-- Specifies which values to encrypt and which keys to use
+- Specifies the public keys generated using *age* to use
+- More details in [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
 
 ### `base.env`
 - Contains all default secrets
+- Encrypted using [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
 - Template for generating `environments/[env].env`
 
 ### `schema.yml`
@@ -121,17 +123,18 @@ print(cfg.get("market_analysis.tickers"))  # Gets resolved value
 ```bash
 cp base.env development.env # Edit with real values
 cp base.yml development.yml # Edit with real values
-echo "DB_PASSWORD=$PROD_SECRET" > development.env
 ```
+
 ## Validation
 ```bash
 TODO .........validate on schema.yml.........
 ```
 
 ## Secret Management with Secrets OPerationS (SOPS)
+SOPS encrypts individual values within files (like YAML, ENV, JSON), making it possible to track secret changes, share encrypted configurations across teams, and maintain different environments while keeping the file structure readable. In this project, we use SOPS with *age* encryption to manage our environment variables and sensitive configurations.
 
 ### Setup Instructions
-To install SOPS and age, download one of the pre-built binaries provided for your platform from the artifacts attached to the releases 
+To install SOPS and *age*, download one of the pre-built binaries provided for your platform from the artifacts attached to the releases 
 - [SOPS release](https://github.com/getsops/sops/releases/latest)
 - [age release](https://github.com/FiloSottile/age/releases/latest)
 
@@ -187,17 +190,14 @@ To install SOPS and age, download one of the pre-built binaries provided for you
 ### Working with SOPS
 1. **Encrypt Values**:
    ```bash
-   # Encrypt using SOPS config file
-   sops --config config/.sops.yaml \
-        --input-type yaml \
-        --output-type yaml \
-        encrypt -i config/base.yml
+   # Encrypt secrets environment file
+   sops --config config/.sops.yaml encrypt config/base.env
 
-   # Edit encrypted files
-   sops --config config/.sops.yaml edit config/base.yml
+   # Edit encrypted secrets environment file variables 
+   sops --config config/.sops.yaml edit config/base.env
 
-   # Decrypt for use
-   sops --config config/.sops.yaml decrypt config/base.yml
+   # Decrypt secrets environment file
+   sops --config config/.sops.yaml decrypt config/base.env
    ```
 
 ### WSL-Specific Considerations
@@ -246,21 +246,14 @@ To install SOPS and age, download one of the pre-built binaries provided for you
 
 4. **SOPS Configuration Priority**:
    - Environment variables (`SOPS_PGP_FP`) take precedence over `.sops.yaml`
-   - PGP keys configured in environment will be used even if age is configured
-   - To use age exclusively:
+   - PGP keys configured in environment will be used even if *age* is configured
+   - To use *age* exclusively:
      - Ensure no PGP environment variables are set
      - Only configure age in `.sops.yaml`
      - Set `SOPS_AGE_KEY_FILE` for decryption
 
-5. **Verifying SOPS Configuration**:
+5. **Verifying SOPS Key**:
    ```bash
-   # Check which keys SOPS is using
-   sops --config config/.sops.yaml \
-        --input-type yaml \
-        --output-type yaml \
-        --verbose \
-        encrypt -i config/base.yml
-
    # Verify age key is available
    echo $SOPS_AGE_KEY_FILE
    cat $SOPS_AGE_KEY_FILE | grep "^# public key:"
@@ -268,5 +261,5 @@ To install SOPS and age, download one of the pre-built binaries provided for you
 
 6. **Common Errors**:
    - "failed to encrypt new data key with master key" → PGP key in environment
-   - "no master keys found" → age key not configured correctly
-   - "could not get data key" → missing or invalid age key file
+   - "no master keys found" → *age* key not configured correctly
+   - "could not get data key" → missing or invalid *age* key file
