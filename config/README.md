@@ -15,7 +15,6 @@
   - [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
     - [Setup Instructions](#setup-instructions)
     - [Working with SOPS](#working-with-sops)
-    - [WSL-Specific Considerations](#wsl-specific-considerations)
     - [Troubleshooting](#troubleshooting)
 
 ## Objectives
@@ -188,29 +187,16 @@ To install SOPS and *age*, download one of the pre-built binaries provided for y
    ```
 
 ### Working with SOPS
-1. **Encrypt Values**:
-   ```bash
-   # Encrypt secrets environment file
-   sops --config config/.sops.yaml encrypt config/base.env
+```bash
+# Encrypt secrets environment file
+sops --config config/.sops.yaml encrypt config/base.env
 
-   # Edit encrypted secrets environment file variables 
-   sops --config config/.sops.yaml edit config/base.env
+# Edit encrypted secrets environment file variables 
+sops --config config/.sops.yaml edit config/base.env
 
-   # Decrypt secrets environment file
-   sops --config config/.sops.yaml decrypt config/base.env
-   ```
-
-### WSL-Specific Considerations
-
-1. **Path Handling**:
-   - Use `/mnt/c/...` paths to access Windows files
-   - Consider creating symlinks for frequently accessed directories
-   - Be aware of line ending differences (Windows CRLF vs Unix LF)
-
-2. **File Permissions**:
-   - WSL and Windows handle permissions differently
-   - Key files created in Windows might need permission adjustments in WSL
-   - Use `chmod` in WSL context for proper security
+# Decrypt secrets environment file
+sops --config config/.sops.yaml decrypt config/base.env
+```
 
 ### Troubleshooting
 1. **Permission Issues**:
