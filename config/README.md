@@ -103,11 +103,7 @@ config/
       ```
 2. `environments/[env].env`:
     - Stores secrets for each environment
-    - Gitignored by default
-    - Example:
-      ```bash
-      DB_PASSWORD=secret123
-      ```
+    - Encrypted using [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
 
 ## Usage Examples
 [Configuration usage in python](src/config/README.md)
