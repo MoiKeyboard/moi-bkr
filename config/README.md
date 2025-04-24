@@ -9,6 +9,7 @@
     - [`base.env`](#baseenv)
     - [`schema.yml`](#schemayml)
     - [`Environment Files`](#environment-files)
+  - [Key Workflows](#key-workflows)
   - [Usage Examples](#usage-examples)
   - [Setting Up Environments](#setting-up-environments)
   - [Validation](#validation)
@@ -104,6 +105,18 @@ config/
 2. `environments/[env].env`:
     - Stores secrets for each environment
     - Encrypted using [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
+
+## Key Workflows
+1. `config-sync`
+    - Auto-triggers when `base.yml` is modified
+    - Formats and lins base and environment YAML files
+    - Syncs `base.yml` with environment YAML configuration files
+    - Creates necessary pull reuqests to merge into main branch
+2. `generate-env`
+    - Auto-triggers when `base.yml` is modified
+    - Generates `base.env` file
+    - Fills up secret variables found in `base.yml`
+    - Warns for unused secrets
 
 ## Usage Examples
 [Configuration usage in python](src/config/README.md)
