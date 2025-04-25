@@ -13,6 +13,7 @@
   - [Usage Examples](#usage-examples)
   - [Setting Up Environments](#setting-up-environments)
   - [Validation](#validation)
+  - [Pipeline Integration](#pipeline-integration)
   - [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
     - [Setup Instructions](#setup-instructions)
     - [Working with SOPS](#working-with-sops)
@@ -137,6 +138,20 @@ cp base.yml development.yml # Edit with real values
 ```bash
 TODO .........validate on schema.yml.........
 ```
+## Pipeline Integration
+
+1. **Configuration Sync** [![Config Sync](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml)
+   - Triggers on changes to `base.yml` in main branch
+   - Formats and lints YAML configuration files
+   - Creates PR with synchronized environment configurations
+   - Maintains single active sync PR by closing outdated ones
+   
+2. **Generate Environment Variables** [![Config Env](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-env.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-env.yml)
+   - Runs after Config Sync PR is merged to main
+   - Generates `base.env` from `base.yml`
+   - Validates environment variable references
+   - Sorts and formats environment files
+   - Can be manually triggered via workflow dispatch
 
 ## Secret Management with Secrets OPerationS (SOPS)
 SOPS encrypts individual values within structured files (YAML, JSON, ENV, etc.), enabling secure version control of secrets. Key benefits:
