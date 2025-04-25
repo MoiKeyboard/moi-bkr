@@ -42,7 +42,16 @@ jobs:
 
       - name: Generate Secret Environment Variables
         run: |
+          echo "::group::Generating Environment Variables"
           python .github/workflows/scripts/generate_env.py
+          echo "::endgroup::"
+          
+          # Add summary that will show on the workflow run page
+          echo "### Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Generated base.env from base.yml" >> $GITHUB_STEP_SUMMARY
+          
+          # Add notice that will appear in workflow summary
+          echo "::notice::Environment variables have been generated and formatted"
 
       - name: Format ENV file
         run: |
