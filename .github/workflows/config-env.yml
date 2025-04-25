@@ -1,5 +1,5 @@
 # IBKR/config/README.md
-name: Config Sync
+name: Config Env
 
 on:
   workflow_run:
@@ -78,5 +78,5 @@ jobs:
       - name: Report Status
         if: always()
         run: |
-          echo "Config Sync Summary:"
+          echo "Config Env Summary:"
           echo "- Sync status: ${{ job.status }}"
