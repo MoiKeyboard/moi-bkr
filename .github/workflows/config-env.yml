@@ -2,19 +2,23 @@
 name: Config Sync
 
 on:
-  push:
-    paths:
-      - 'config/base.yml'
+  workflow_run:
+    workflows: ["Config Sync"]  # Name must match config-sync.yml's name
+    types:
+      - completed
     branches:
       - main
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   sync-config:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +37,6 @@ jobs:
           pip install pyyaml
           pip install yamllint
           pip install yq
-          npm install -g prettier
 
       - name: Generate Secret Environment Variables
         run: |
@@ -41,7 +44,17 @@ jobs:
 
       - name: Format ENV file
         run: |
-          sort config/base.env | tr -d '\r' > config/base.env.tmp && mv config/base.env.tmp config/base.env
+          # Sort the file alphabetically
+          sort config/base.env > config/base.env.tmp
+          
+          # Remove Windows carriage returns
+          tr -d '\r' < config/base.env.tmp > config/base.env.clean
+          
+          # Move the cleaned file back to original
+          mv config/base.env.clean config/base.env
+          
+          # Clean up temporary file
+          rm config/base.env.tmp
 
       - name: Check for configuration changes
         id: check-changes
@@ -52,178 +65,14 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create new branch
-        if: steps.check-changes.outputs.has_changes == 'true'
-        id: create-branch
-        run: |
-          # Configure git
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          # Create new branch with timestamp
-          BRANCH_NAME="auto/config-sync-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH_NAME"
-          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-
-      - name: Prepare PR body
-        if: steps.check-changes.outputs.has_changes == 'true'
-        id: prepare-pr
-        run: |
-          # Create PR body file
-          rm -f /tmp/pr-body.md
-          echo "This PR synchronizes environment configurations with base.yml" > /tmp/pr-body.md
-          echo >> /tmp/pr-body.md
-          echo "### Changes Overview" >> /tmp/pr-body.md
-          echo "This automated PR:" >> /tmp/pr-body.md
-          echo "- Sorts all configuration files alphabetically" >> /tmp/pr-body.md
-          echo "- Updates environment-specific configurations to align with changes in base.yml" >> /tmp/pr-body.md
-          echo >> /tmp/pr-body.md
-          echo "### Diff Details" >> /tmp/pr-body.md
-          echo '```diff' >> /tmp/pr-body.md
-          git diff >> /tmp/pr-body.md
-          echo '```' >> /tmp/pr-body.md
-          echo >> /tmp/pr-body.md
-          echo "### Notes" >> /tmp/pr-body.md
-          echo "- Only environment-specific overrides are preserved" >> /tmp/pr-body.md
-          echo "- All other values are inherited from base.yml" >> /tmp/pr-body.md
-          echo "- Review the changes to ensure no environment-specific configurations were accidentally modified" >> /tmp/pr-body.md
-
       - name: Commit and push changes
         if: steps.check-changes.outputs.has_changes == 'true'
-        id: push-changes
         run: |
-          # Commit and push changes to new branch
-          git add '*.yml'
-          git commit -m "chore: sort and sync configuration yml files"
-          git push origin "${{ steps.create-branch.outputs.branch_name }}"
-          echo "pushed=true" >> $GITHUB_OUTPUT
-
-      - name: Create Pull Request
-        if: steps.push-changes.outputs.pushed == 'true'
-        id: create-pr
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          # Create Pull Request using GitHub CLI
-          echo "Creating pull request..."
-          if gh pr create \
-            --title "Config Sync: Sort and update configuration files" \
-            --body-file /tmp/pr-body.md \
-            --base main \
-            --head "${{ steps.create-branch.outputs.branch_name }}"; then
-            
-            # Get PR number after successful creation
-            PR_NUM=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json number -q '.number')
-            echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
-            echo "created=true" >> $GITHUB_OUTPUT
-            echo "Successfully created PR #$PR_NUM"
-          else
-            echo "Failed to create PR"
-            echo "created=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: List PRs to close
-        if: steps.create-pr.outputs.created == 'true'
-        id: list-old-prs
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          # List open PRs with head branch matching auto/config-sync-*
-          echo "Looking for PRs with auto/config-sync- branches..."
-          NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
-          echo "Newly created PR has number #${NEW_PR_NUM}"
-
-          # Use simpler gh pr list and filter with grep/awk
-          echo "Searching for auto/config-sync PRs to close:"
-          gh pr list --state open --search "head:auto/config-sync-" > /tmp/found_prs.txt || true
-
-          # Filter out the one we just created
-          grep -v "	#${NEW_PR_NUM}	" /tmp/found_prs.txt > /tmp/prs_to_close.txt || true
-
-          echo "PRs to close (from /tmp/prs_to_close.txt):"
-          if [ -s /tmp/prs_to_close.txt ]; then
-            cat /tmp/prs_to_close.txt
-            echo "has_prs_to_close=true" >> $GITHUB_OUTPUT
-          else
-            echo "No PRs to close"
-            echo "has_prs_to_close=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Close old PRs
-        if: steps.list-old-prs.outputs.has_prs_to_close == 'true'
-        id: close-old-prs
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          echo "Closing older config-sync pull requests..."
-          NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
-
-          echo "New PR: #$NEW_PR_NUM"
-          echo "PRs to close:"
-          cat /tmp/prs_to_close.txt
-
-          while IFS=$'\t' read -r PR_NUM TITLE BRANCH MERGE_STATUS; do # Use IFS to read tab-separated values
-            if [ -n "$PR_NUM" ]; then
-              # PR_NUM might have # prefix from some gh versions, remove it
-              PR_NUM_CLEAN=$(echo "$PR_NUM" | tr -d '#')
-              echo "Closing PR #$PR_NUM_CLEAN (Title: $TITLE, Branch: $BRANCH)"
-              gh pr close "$PR_NUM_CLEAN" --comment "Superseded by PR #$NEW_PR_NUM"
-            fi
-          done < /tmp/prs_to_close.txt
-
-          echo "closed_prs=true" >> $GITHUB_OUTPUT
-
-      - name: List branches to clean up
-        if: steps.create-pr.outputs.created == 'true'
-        id: list-branches
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          echo "Listing branches to clean up..."
-          rm -f /tmp/branches_to_delete.txt # Ensure file is clean
-
-          # Fetch all remote branches
-          git fetch origin
-
-          # Skip the branch we just created
-          NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
-          echo "Current branch ($NEW_BRANCH) will be preserved."
-
-          # Debug: Show all remote branches
-          echo "All remote branches:"
-          git branch -r
-
-          # Get all branches and filter, excluding the current one (with whitespace trimming)
-          echo "Processing branches..."
-          git branch -r | \
-            grep "origin/auto/config-sync-" | \
-            sed 's/origin\///' | \
-            tr -d '[:space:]' | \
-            grep -Fxv "${NEW_BRANCH}" > /tmp/branches_to_delete.txt || true
-
-          echo "Branches to delete (from /tmp/branches_to_delete.txt):"
-          if [ -s /tmp/branches_to_delete.txt ]; then
-            cat /tmp/branches_to_delete.txt
-            echo "has_branches_to_delete=true" >> $GITHUB_OUTPUT
-          else
-            echo "No branches to delete"
-            echo "has_branches_to_delete=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Clean up branches
-        if: steps.list-branches.outputs.has_branches_to_delete == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          echo "Deleting old branches..."
-          cat /tmp/branches_to_delete.txt
-
-          while read -r BRANCH; do
-            if [ -n "$BRANCH" ]; then
-              echo "Deleting branch $BRANCH"
-              git push origin --delete "$BRANCH" || echo "Could not delete branch $BRANCH"
-            fi
-          done < /tmp/branches_to_delete.txt
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add config/base.env
+          git commit -m "chore: sort and format base.env file"
+          git push origin main
 
       - name: Report Status
         if: always()
