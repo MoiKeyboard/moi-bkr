@@ -3,24 +3,29 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class BotCommand(BaseModel):
     """Base command model"""
+
     command: str
     user_id: str
     chat_id: str
     args: Optional[str] = None
     timestamp: datetime = datetime.now()
 
+
 class BotResponse(BaseModel):
     """Base response model"""
+
     success: bool
     message: str
     data: Optional[Dict[str, Any]] = None
     timestamp: datetime = datetime.now()
 
+
 class BotPlatform(ABC):
     """Abstract base class for bot platforms"""
-    
+
     @abstractmethod
     async def verify_webhook(self, request: Dict[str, Any]) -> bool:
         """
@@ -31,7 +36,7 @@ class BotPlatform(ABC):
             bool: True if verification passes
         """
         pass
-    
+
     @abstractmethod
     async def parse_command(self, update: Dict[str, Any]) -> BotCommand:
         """
@@ -42,7 +47,7 @@ class BotPlatform(ABC):
             BotCommand: Parsed command request
         """
         pass
-    
+
     @abstractmethod
     async def format_response(self, response: BotResponse) -> str:
         """
@@ -53,7 +58,7 @@ class BotPlatform(ABC):
             str: Formatted response string
         """
         pass
-    
+
     @abstractmethod
     async def is_user_authorized(self, user_id: str) -> bool:
         """
