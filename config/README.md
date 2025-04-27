@@ -7,7 +7,7 @@
     - [`base.yml`](#baseyml)
     - [`.sops.yaml`](#sopsyaml)
     - [`base.env`](#baseenv)
-    - [`schema.yml`](#schemayml)
+    - [`schema.yml` TODO](#schemayml-todo)
     - [`Environment Files`](#environment-files)
   - [Key Workflows](#key-workflows)
   - [Usage Examples](#usage-examples)
@@ -85,7 +85,7 @@ config/
 - Encrypted using [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
 - Template for generating `environments/[env].env`
 
-### `schema.yml`
+### `schema.yml` TODO
 - JSON Schema validation rules
 - Marks required secrets:
    ```yaml
