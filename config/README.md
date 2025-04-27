@@ -120,7 +120,9 @@ config/
     - Warns for unused secrets
 
 ## Usage Examples
-[Configuration usage in python](src/config/README.md)
+For detailed developer usage and best practices, see the [Configuration System Developer Guide](../src/config/README.md).
+
+Basic example:
 ```python
 from config import Config
 
