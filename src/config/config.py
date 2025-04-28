@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict
 from copy import deepcopy
 
+
 class Config:
     """Singleton configuration loader and accessor."""
 
@@ -71,9 +72,11 @@ class Config:
                     ["sops", "--decrypt", str(env_file)],
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=True,
                 )
-                self.logger.debug("Loading decrypted secrets into environment variables...")
+                self.logger.debug(
+                    "Loading decrypted secrets into environment variables..."
+                )
                 for line in result.stdout.splitlines():
                     if line.strip() and not line.startswith("#"):
                         key, value = line.strip().split("=", 1)
@@ -104,7 +107,10 @@ class Config:
                 self.logger.info("Environment overrides from %s applied.", env_file)
                 # self.logger.debug("Validation would occur here (TODO).")
         else:
-            self.logger.warning("No environment override file found for %s. Using base configuration only.", self.env)
+            self.logger.warning(
+                "No environment override file found for %s. Using base configuration only.",
+                self.env,
+            )
         self._resolve_secrets()
 
     def _resolve_secrets(self) -> None:
@@ -116,13 +122,25 @@ class Config:
         """
         self.logger.debug("Resolving secrets in configuration...")
         for key, value in self._iter_deep_items(self._env_config):
-            if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+            if (
+                isinstance(value, str)
+                and value.startswith("${")
+                and value.endswith("}")
+            ):
                 env_var = value[2:-1]
                 if env_var not in os.environ:
-                    self.logger.error("Missing required environment variable: %s", env_var)
-                    raise ValueError(f"Missing required environment variable: {env_var}")
+                    self.logger.error(
+                        "Missing required environment variable: %s", env_var
+                    )
+                    raise ValueError(
+                        f"Missing required environment variable: {env_var}"
+                    )
                 self._nested_set(self._env_config, key.split("."), os.environ[env_var])
-                self.logger.debug("Resolved secret for '%s' from environment variable '%s'.", key, env_var)
+                self.logger.debug(
+                    "Resolved secret for '%s' from environment variable '%s'.",
+                    key,
+                    env_var,
+                )
         self.logger.info("All secrets resolved.")
 
     @staticmethod
