@@ -47,6 +47,10 @@ os.environ["APP_ENV"] = "development"  # or "production", etc.
 config = Config()  # Will load appropriate environment files
 ```
 
+**Note:**  
+Configuration files and secrets are loaded once, when the `Config` singleton is first created.  
+If you change environment variables or config files after this, you must restart your application to reload the configuration.
+
 ## Best Practices
 
 ### 1. Secret References
