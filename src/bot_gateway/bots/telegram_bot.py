@@ -5,15 +5,16 @@ from .base_bot import BotPlatform, BotCommand, BotResponse
 from ..market_client import MarketClient
 import datetime
 
+
 class TelegramBot(BotPlatform):
     """Telegram bot implementation"""
-    
+
     def __init__(
         self,
         webhook_secret: str,
         allowed_users: List[str],
         market_api_url: str,
-        logger: Optional[logging.Logger] = None
+        logger: Optional[logging.Logger] = None,
     ):
         """
         Initialize Telegram bot
@@ -26,20 +27,17 @@ class TelegramBot(BotPlatform):
         self.webhook_secret = webhook_secret
         self.allowed_users = set(allowed_users)
         self.logger = logger or logging.getLogger(__name__)
-        
+
         # Initialize market client
         self.logger.info(f"Initializing MarketClient with URL: {market_api_url}")
-        self.market_client = MarketClient(
-            base_url=market_api_url,
-            logger=self.logger
-        )
-        
+        self.market_client = MarketClient(base_url=market_api_url, logger=self.logger)
+
         # Command mapping
         self.commands = {
             "/scan": self._handle_scan,
             "/trending": self._handle_trending,
             "/health": self._handle_health,
-            "/help": self._handle_help
+            "/help": self._handle_help,
         }
 
     async def verify_webhook(self, request: Dict[str, Any]) -> bool:
@@ -51,8 +49,10 @@ class TelegramBot(BotPlatform):
             bool: True if verification passes
         """
         headers = request.get("headers", {})
-        token = headers.get("x-telegram-bot-api-secret-token")  # Fixed casing for header key
-        
+        token = headers.get(
+            "x-telegram-bot-api-secret-token"
+        )  # Fixed casing for header key
+
         # Log the incoming secret for debugging
         if token:
             self.logger.info(f"Incoming secret token: {token}")
@@ -64,7 +64,7 @@ class TelegramBot(BotPlatform):
         if not hmac.compare_digest(token, self.webhook_secret):
             self.logger.warning("Webhook secret token mismatch")
             return False
-            
+
         return True
 
     async def parse_command(self, update: Dict[str, Any]) -> BotCommand:
@@ -80,12 +80,12 @@ class TelegramBot(BotPlatform):
             text = message.get("text", "").split()
             command = text[0] if text else ""
             args = " ".join(text[1:]) if len(text) > 1 else None
-            
+
             return BotCommand(
                 command=command,
                 user_id=str(message.get("from", {}).get("id")),
                 chat_id=str(message.get("chat", {}).get("id")),
-                args=args
+                args=args,
             )
         except Exception as e:
             self.logger.error(f"Error parsing command: {e}")
@@ -101,16 +101,16 @@ class TelegramBot(BotPlatform):
         """
         if not response.success:
             return f"❌ Error: {response.message}"
-            
+
         if not response.data:
             return f"✅ {response.message}"
-            
+
         # Format based on command type
         if "trending" in response.data:
             return self._format_trending_response(response.data)
         elif "scan" in response.data:
             return self._format_scan_response(response.data)
-        
+
         return f"✅ {response.message}\n{response.data}"
 
     async def is_user_authorized(self, user_id: str) -> bool:
@@ -131,7 +131,7 @@ class TelegramBot(BotPlatform):
         stocks = data.get("trending", [])
         if not stocks:
             return "No trending stocks found"
-            
+
         response = "📈 Trending Stocks:\n\n"
         for stock in stocks:
             response += (
@@ -158,7 +158,7 @@ class TelegramBot(BotPlatform):
         return BotResponse(
             success=result.get("status") == "success",
             message="Market scan completed",
-            data=result.get("data")
+            data=result.get("data"),
         )
 
     async def _handle_trending(self, command: BotCommand) -> BotResponse:
@@ -168,7 +168,7 @@ class TelegramBot(BotPlatform):
         return BotResponse(
             success=result.get("status") == "success",
             message="Retrieved trending stocks",
-            data=result.get("data")
+            data=result.get("data"),
         )
 
     async def _handle_health(self, command: BotCommand) -> BotResponse:
@@ -178,7 +178,7 @@ class TelegramBot(BotPlatform):
         return BotResponse(
             success=result.get("status") == "success",
             message="Health check completed",
-            data=result
+            data=result,
         )
 
     async def _handle_help(self, command: BotCommand) -> BotResponse:
@@ -189,14 +189,10 @@ class TelegramBot(BotPlatform):
                 "/scan": "Trigger a market scan",
                 "/trending": "Get trending stocks",
                 "/health": "Check system health",
-                "/help": "Show this help message"
+                "/help": "Show this help message",
             }
         }
-        return BotResponse(
-            success=True,
-            message="Available commands",
-            data=help_text
-        )
+        return BotResponse(success=True, message="Available commands", data=help_text)
 
     async def health_check(self) -> Dict[str, Any]:
         """
@@ -208,22 +204,16 @@ class TelegramBot(BotPlatform):
         try:
             # Check market API health
             market_status = await self.market_client.health_check()
-            
+
             return {
-                "bot": {
-                    "status": "healthy",
-                    "allowed_users": len(self.allowed_users)
-                },
+                "bot": {"status": "healthy", "allowed_users": len(self.allowed_users)},
                 "market_api": market_status,
-                "timestamp": datetime.datetime.utcnow().isoformat()
+                "timestamp": datetime.datetime.utcnow().isoformat(),
             }
         except Exception as e:
             self.logger.error(f"Health check failed: {e}")
             return {
-                "bot": {
-                    "status": "error",
-                    "message": str(e)
-                },
+                "bot": {"status": "error", "message": str(e)},
                 "market_api": {"status": "unknown"},
-                "timestamp": datetime.datetime.utcnow().isoformat()
+                "timestamp": datetime.datetime.utcnow().isoformat(),
             }

@@ -7,14 +7,15 @@ from pathlib import Path
 from typing import Any, Dict
 from copy import deepcopy
 
+
 class Config:
     """
     Singleton configuration loader and accessor.
-    
+
     Loads configuration from:
     - environments/{env}.yml for environment-specific configuration
     - config/base.env for encrypted secrets (using SOPS)
-    
+
     Configuration values can be accessed using dot notation.
     Environment variables take precedence over configuration file values.
     """
@@ -84,9 +85,11 @@ class Config:
                     ["sops", "--decrypt", str(env_file)],
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=True,
                 )
-                self.logger.debug("Loading decrypted secrets into environment variables...")
+                self.logger.debug(
+                    "Loading decrypted secrets into environment variables..."
+                )
                 for line in result.stdout.splitlines():
                     if line.strip() and not line.startswith("#"):
                         key, value = line.strip().split("=", 1)
@@ -102,19 +105,21 @@ class Config:
     def _load_and_merge_config(self) -> None:
         """
         Load environment-specific configuration from environments/{self.env}.yml.
-        
+
         Raises:
             FileNotFoundError: If the environment configuration file is not found.
         """
         env_file = Path(f"environments/{self.env}.yml")
         if not env_file.exists():
             self.logger.error(f"Environment configuration file not found: {env_file}")
-            raise FileNotFoundError(f"Environment configuration file not found: {env_file}")
+            raise FileNotFoundError(
+                f"Environment configuration file not found: {env_file}"
+            )
 
         self.logger.info("Loading configuration from %s...", env_file)
         with env_file.open() as f:
             self._env_config = yaml.safe_load(f) or {}
-        
+
         self._resolve_secrets()
 
     def _resolve_secrets(self) -> None:
@@ -126,13 +131,25 @@ class Config:
         """
         self.logger.debug("Resolving secrets in configuration...")
         for key, value in self._iter_deep_items(self._env_config):
-            if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+            if (
+                isinstance(value, str)
+                and value.startswith("${")
+                and value.endswith("}")
+            ):
                 env_var = value[2:-1]
                 if env_var not in os.environ:
-                    self.logger.error("Missing required environment variable: %s", env_var)
-                    raise ValueError(f"Missing required environment variable: {env_var}")
+                    self.logger.error(
+                        "Missing required environment variable: %s", env_var
+                    )
+                    raise ValueError(
+                        f"Missing required environment variable: {env_var}"
+                    )
                 self._nested_set(self._env_config, key.split("."), os.environ[env_var])
-                self.logger.debug("Resolved secret for '%s' from environment variable '%s'.", key, env_var)
+                self.logger.debug(
+                    "Resolved secret for '%s' from environment variable '%s'.",
+                    key,
+                    env_var,
+                )
         self.logger.info("All secrets resolved.")
 
     @staticmethod
