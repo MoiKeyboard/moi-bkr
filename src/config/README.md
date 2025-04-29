@@ -29,7 +29,7 @@ from config import Config
 config = Config()
 
 # Access configuration values
-tickers = config.get("market_analysis.tickers")  # List from base.yml
+tickers = config.get("market_analysis.tickers")  # From environment YAML
 api_key = config.get("market_api.key")          # Secret from base.env
 port = config.get("bot_gateway.port")           # Regular config value
 ```
@@ -37,25 +37,28 @@ port = config.get("bot_gateway.port")           # Regular config value
 ### Configuration Resolution
 Values are resolved in this order:
 1. Environment variables (`os.environ`)
-2. Environment-specific overrides (`environments/{env}.yml`)
-3. Base configuration (`base.yml`)
+2. Environment-specific configuration (`environments/{env}.yml`)
 
 ### Environment Handling
 ```python
 # Set environment before importing Config
 os.environ["APP_ENV"] = "development"  # or "production", etc.
-config = Config()  # Will load appropriate environment files
+config = Config()  # Will load appropriate environment file
 ```
 
 **Note:**  
-Configuration files and secrets are loaded once, when the `Config` singleton is first created.  
-If you change environment variables or config files after this, you must restart your application to reload the configuration.
+Configuration is loaded once when the `Config` singleton is first created.
+Two files are used:
+- `environments/{env}.yml` - Environment-specific configuration
+- `config/base.env` - Encrypted secrets (optional)
+
+If you change environment variables or config files after initialization, you must restart your application to reload the configuration.
 
 ## Best Practices
 
 ### 1. Secret References
 ```yaml
-# Good - uses environment variable
+# Good - uses environment variable from base.env
 api_key: "${API_KEY}"
 
 # Bad - hardcoded secret
@@ -102,9 +105,10 @@ if config.get("feature.enabled", False):
 ```
 
 ### Environment Variables
-- Ensure required environment variables are set
-- Check for correct naming (uppercase with underscores)
-- Verify values are properly escaped
+- Required environment variables must be defined in `config/base.env`
+- Environment variables are decrypted using SOPS
+- Variables referenced in config must use `${VAR_NAME}` syntax
+- Names are automatically converted to uppercase with underscores
 
 ### Type Conversion
 ```python

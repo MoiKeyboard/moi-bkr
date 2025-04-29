@@ -8,20 +8,33 @@ from typing import Any, Dict
 from copy import deepcopy
 
 class Config:
-    """Singleton configuration loader and accessor."""
+    """
+    Singleton configuration loader and accessor.
+    
+    Loads configuration from:
+    - environments/{env}.yml for environment-specific configuration
+    - config/base.env for encrypted secrets (using SOPS)
+    
+    Configuration values can be accessed using dot notation.
+    Environment variables take precedence over configuration file values.
+    """
 
     _instance = None
 
     def __new__(cls) -> "Config":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            # Set up logger first
+            cls._instance.logger = logging.getLogger(f"{__name__}.{cls.__name__}")
+            # Initialize empty config
+            cls._instance._env_config = {}
+            # Now safe to initialize
             cls._instance._initialize()
         return cls._instance
 
     def __init__(self):
-        # Only set up logger once per instance
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        # Nothing needed in init since we handle setup in __new__
+        pass
 
     def get(self, key: str) -> Any:
         """
@@ -88,23 +101,20 @@ class Config:
 
     def _load_and_merge_config(self) -> None:
         """
-        Load base and environment-specific configuration, then resolve secrets.
+        Load environment-specific configuration from environments/{self.env}.yml.
+        
+        Raises:
+            FileNotFoundError: If the environment configuration file is not found.
         """
-        self.logger.info("Loading base configuration from config/base.yml...")
-        with open("config/base.yml") as f:
-            self._base = yaml.safe_load(f)
+        env_file = Path(f"environments/{self.env}.yml")
+        if not env_file.exists():
+            self.logger.error(f"Environment configuration file not found: {env_file}")
+            raise FileNotFoundError(f"Environment configuration file not found: {env_file}")
 
-        self._env_config = deepcopy(self._base)
-        env_file = f"environments/{self.env}.yml"
-        if Path(env_file).exists():
-            self.logger.info("Loading environment overrides from %s...", env_file)
-            with open(env_file) as f:
-                overrides = yaml.safe_load(f)
-                self._deep_update(self._env_config, overrides)
-                self.logger.info("Environment overrides from %s applied.", env_file)
-                # self.logger.debug("Validation would occur here (TODO).")
-        else:
-            self.logger.warning("No environment override file found for %s. Using base configuration only.", self.env)
+        self.logger.info("Loading configuration from %s...", env_file)
+        with env_file.open() as f:
+            self._env_config = yaml.safe_load(f) or {}
+        
         self._resolve_secrets()
 
     def _resolve_secrets(self) -> None:
@@ -176,22 +186,3 @@ class Config:
                 yield from Config._iter_deep_items(value, current_key)
             else:
                 yield current_key, value
-
-    @staticmethod
-    def _deep_update(d: Dict, u: Dict) -> Dict:
-        """
-        Recursively update a dictionary with another dictionary.
-
-        Args:
-            d (Dict): The original dictionary.
-            u (Dict): The update dictionary.
-
-        Returns:
-            Dict: The updated dictionary.
-        """
-        for k, v in u.items():
-            if isinstance(v, dict):
-                d[k] = Config._deep_update(d.get(k, {}), v)
-            else:
-                d[k] = v
-        return d
