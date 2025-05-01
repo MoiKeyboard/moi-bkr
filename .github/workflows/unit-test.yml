@@ -27,57 +27,39 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
+          pip install pytest pytest-asyncio httpx pytest-cov
 
-      - name: Run MarketScanner tests
-        run: python tests/test_market_scanner.py
-
-      - name: Run Scanner API tests
-        run: python tests/test_scanner_api.py
-
-      - name: Summarize Test Results
-        id: test_results
+      - name: Run All Tests with Coverage
         run: |
-          # Count the total number of tests
-          TOTAL_TESTS=$(pytest tests/ --collect-only -q | wc -l)
-          echo "Total Tests: $TOTAL_TESTS"
+          pytest tests/ \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term \
+            -v
 
-          # Count the number of passed tests
-          PASSED_TESTS=$(pytest tests/ -q | grep -c "PASSED")
-          echo "Passed Tests: $PASSED_TESTS"
-
-          # Calculate the percentage of passed tests
-          if [ "$TOTAL_TESTS" -gt 0 ]; then
-            PASS_PERCENTAGE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-          else
-            PASS_PERCENTAGE=0
-          fi
-          echo "Pass Percentage: $PASS_PERCENTAGE%"
-
-          # Output the results
-          echo "TEST_RESULTS=Total Tests: $TOTAL_TESTS, Passed Tests: $PASSED_TESTS, Pass Percentage: $PASS_PERCENTAGE%" >> $GITHUB_ENV
-
-      - name: Generate Test Coverage Badge URL
+      - name: Generate Test Coverage Badge
         run: |
-          PASS_PERCENTAGE=$(echo "$TEST_RESULTS" | grep -oP 'Pass Percentage: \K\d+')
-          COLOR=$(awk -v pass_percentage=$PASS_PERCENTAGE 'BEGIN {
-            if (pass_percentage < 50) print "red";
-            else if (pass_percentage < 80) print "yellow";
+          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(root.attrib['line-rate'])")
+          PERCENTAGE=$(python -c "print(int(float('${COVERAGE}') * 100))")
+          COLOR=$(awk -v coverage=$PERCENTAGE 'BEGIN {
+            if (coverage < 50) print "red";
+            else if (coverage < 80) print "yellow";
             else print "brightgreen";
           }')
-          BADGE_URL="https://img.shields.io/badge/Test_Coverage-$PASS_PERCENTAGE%25-$COLOR.svg?logo=github"
+          BADGE_URL="https://img.shields.io/badge/Test_Coverage-${PERCENTAGE}%25-${COLOR}.svg?logo=github"
           echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
 
-      - name: Download Badge as SVG
+      - name: Update Badge
         run: |
           mkdir -p .github/badges
           curl -o .github/badges/test_coverage.svg "$BADGE_URL"
 
-      - name: Commit Badge to Repository
+      - name: Commit Badge
+        if: github.ref == 'refs/heads/main'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull
           git add .github/badges/test_coverage.svg
-          git commit -m "Update badge in .github/badges folder"
+          git commit -m "Update test coverage badge [skip ci]"
           git push https://${{ secrets.PAT }}@github.com/MoiKeyboard/moi-bkr.git HEAD:main
