@@ -1,7 +1,7 @@
 # Configuration System (Developer Guide)
 
 - [Configuration System (Developer Guide)](#configuration-system-developer-guide)
-  - [Usage](#usage)
+  - [Getting Started](#getting-started)
     - [Basic Access](#basic-access)
     - [Configuration Resolution](#configuration-resolution)
     - [Environment Handling](#environment-handling)
@@ -14,12 +14,15 @@
     - [Missing Configuration](#missing-configuration)
     - [Environment Variables](#environment-variables)
     - [Type Conversion](#type-conversion)
+  - [Testing](#testing)
+    - [Unit Tests ](#unit-tests-)
+    - [Writing Tests](#writing-tests)
   - [Validation (TODO)](#validation-todo)
   - [Further Reading](#further-reading)
 
 A 12-factor compliant configuration system for accessing configuration and secrets. For operational setup and management, see the [Configuration System Operations Guide](../../config/README.md).
 
-## Usage
+## Getting Started
 
 ### Basic Access
 ```python
@@ -118,6 +121,59 @@ try:
 except ValueError:
     timeout = 30  # Default value
 ```
+
+## Testing
+
+### Unit Tests [![Test Coverage](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/unit-test.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/unit-test.yml)
+The configuration system has comprehensive unit tests in [`tests/test_config.py`](../../tests/test_config.py). The tests cover:
+- Basic configuration loading and access
+- Environment variable resolution
+- Secret handling
+- Error cases
+
+### Writing Tests
+When testing code that uses the Config class, follow these patterns:
+
+```python
+from unittest.mock import patch, MagicMock
+from config import Config
+
+class TestYourFeature(unittest.TestCase):
+    def setUp(self):
+        """Reset Config singleton before each test"""
+        Config._instance = None
+        os.environ["APP_ENV"] = "test"
+    
+    def tearDown(self):
+        """Clean up after each test"""
+        Config._instance = None
+        # Clean any test environment variables
+        for key in ["APP_ENV", "TEST_VAR"]:
+            os.environ.pop(key, None)
+
+    @patch('yaml.safe_load')
+    @patch('pathlib.Path.exists')
+    @patch('pathlib.Path.open')
+    def test_feature_with_config(self, mock_open, mock_exists, mock_yaml_load):
+        # Mock configuration
+        mock_exists.return_value = True
+        mock_yaml_load.return_value = {
+            "feature": {
+                "enabled": True,
+                "timeout": 30
+            }
+        }
+        
+        # Test your feature
+        config = Config()
+        self.assertTrue(config.get("feature.enabled"))
+```
+
+Key testing considerations:
+- Always reset the Config singleton in setUp/tearDown
+- Mock file operations and YAML loading
+- Test both successful and error cases
+- Clean up environment variables after tests
 
 ## Validation (TODO)
 Configuration validation will be implemented soon. For now:
