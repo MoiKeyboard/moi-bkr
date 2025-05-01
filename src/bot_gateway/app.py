@@ -8,8 +8,7 @@ from .bots.base_bot import BotCommand
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -29,8 +28,9 @@ bot = TelegramBot(
     webhook_secret=WEBHOOK_SECRET,
     allowed_users=ALLOWED_USERS,
     market_api_url=MARKET_API_URL,
-    logger=logger
+    logger=logger,
 )
+
 
 @app.get("/health")
 async def health_check():
@@ -38,21 +38,22 @@ async def health_check():
     try:
         # Use the bot's health_check method
         result = await bot.health_check()
-        
+
         return {
             "status": "ok",
             "message": "Bot gateway is running",
             "bot_health": result,
             "version": "1.0",
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.utcnow().isoformat(),
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return {
-            "status": "error", 
+            "status": "error",
             "message": f"Health check failed: {str(e)}",
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.utcnow().isoformat(),
         }
+
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -69,10 +70,7 @@ async def telegram_webhook(request: Request):
         logger.info(f"Received headers: {headers}")
 
         # Create request object for verification
-        webhook_request = {
-            "headers": headers,
-            "body": update
-        }
+        webhook_request = {"headers": headers, "body": update}
 
         # Verify webhook
         if not await bot.verify_webhook(webhook_request):
@@ -109,6 +107,5 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error processing webhook: {e}", exc_info=True)
         return JSONResponse(
-            status_code=500,
-            content={"text": f"Error processing request: {str(e)}"}
+            status_code=500, content={"text": f"Error processing request: {str(e)}"}
         )
