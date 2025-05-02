@@ -37,6 +37,108 @@ jobs:
             --cov-report=term \
             -v
 
+      - name: Generate Test Coverage Report
+        run: |
+          # Get coverage data from coverage.xml
+          TOTAL_STATEMENTS=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(sum(int(cls.attrib['statements']) for cls in root.findall('.//class')))")
+          TOTAL_MISSING=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(sum(int(cls.attrib['missing-statements']) for cls in root.findall('.//class')))")
+          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib['line-rate']) * 100:.1f}\")")
+          
+          echo "# Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall Statistics
+          echo "## Overall Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Overall coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "- 📝 Total statements: ${TOTAL_STATEMENTS}" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Missing statements: ${TOTAL_MISSING}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Module Coverage Table
+          echo "## Coverage by Module" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Statements | Missing | Coverage | Missing Lines |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------------|----------|----------|---------------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate module coverage data dynamically
+          python -c '
+          import xml.etree.ElementTree as ET
+          tree = ET.parse("coverage.xml")
+          root = tree.getroot()
+          
+          for cls in root.findall(".//class"):
+              filename = cls.attrib["filename"]
+              statements = cls.attrib["statements"]
+              missing = cls.attrib["missing-statements"]
+              coverage = float(cls.attrib["line-rate"]) * 100
+              
+              # Get missing lines
+              missing_lines = []
+              for lines in cls.findall(".//lines"):
+                  for line in lines.findall(".//line[@hits=\"0\"]"):
+                      missing_lines.append(line.attrib["number"])
+              
+              # Format missing lines (truncate if too long)
+              missing_str = ", ".join(missing_lines[:5])
+              if len(missing_lines) > 5:
+                  missing_str += ", ..."
+              
+              # Determine coverage indicator
+              indicator = "🔴" if coverage < 60 else "🟡" if coverage < 80 else "🟢"
+              
+              print(f"| {filename} | {statements} | {missing} | {indicator} {coverage:.1f}% | {missing_str} |")
+          ' >> $GITHUB_STEP_SUMMARY
+          
+          # Coverage Indicators
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Coverage Indicators" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟢 Good coverage (≥80%)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟡 Moderate coverage (60-79%)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 Needs improvement (<60%)" >> $GITHUB_STEP_SUMMARY
+          
+          # Analysis and Recommendations
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Analysis and Recommendations" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate recommendations dynamically
+          python -c '
+          import xml.etree.ElementTree as ET
+          tree = ET.parse("coverage.xml")
+          root = tree.getroot()
+          
+          # Find critical areas (coverage < 60%)
+          critical = []
+          moderate = []
+          good = []
+          
+          for cls in root.findall(".//class"):
+              filename = cls.attrib["filename"]
+              coverage = float(cls.attrib["line-rate"]) * 100
+              missing_count = int(cls.attrib["missing-statements"])
+              
+              if coverage < 60:
+                  critical.append((filename, coverage, missing_count))
+              elif coverage < 80:
+                  moderate.append((filename, coverage, missing_count))
+              else:
+                  good.append((filename, coverage))
+          
+          if critical:
+              print("\n### Critical Areas")
+              for filename, coverage, missing in sorted(critical, key=lambda x: x[1]):
+                  print(f"1. 🚨 **{filename}** ({coverage:.1f}% coverage)")
+                  print(f"   - High priority: {missing} statements need coverage")
+          
+          if moderate:
+              print("\n### Moderate Coverage Areas")
+              for filename, coverage, missing in sorted(moderate, key=lambda x: x[1]):
+                  print(f"1. 🔍 **{filename}** ({coverage:.1f}% coverage)")
+                  print(f"   - {missing} statements need coverage")
+          
+          if good:
+              print("\n### Well-Tested Modules")
+              for filename, coverage in sorted(good, key=lambda x: x[1], reverse=True):
+                  print(f"✨ **{filename}** ({coverage:.1f}% coverage)")
+          ' >> $GITHUB_STEP_SUMMARY
+
       - name: Generate Test Coverage Badge
         run: |
           COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(root.attrib['line-rate'])")
