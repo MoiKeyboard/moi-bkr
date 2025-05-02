@@ -62,4 +62,4 @@ jobs:
           git pull
           git add .github/badges/test_coverage.svg
           git commit -m "Update test coverage badge [skip ci]"
-          git push https://${{ secrets.PAT }}@github.com/MoiKeyboard/moi-bkr.git HEAD:main
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
