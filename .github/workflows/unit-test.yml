@@ -160,10 +160,10 @@ jobs:
           mkdir -p .github/badges
           curl -o .github/badges/test_coverage.svg "$BADGE_URL"
 
-      - name: Check for git changes
+      - name: Check for badge changes
         id: check-changes
         run: |
-          if [[ $(git status --porcelain) ]]; then
+          if [[ $(git status --porcelain .github/badges/test_coverage.svg) ]]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -177,6 +177,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull
-          git add .github/badges/test_coverage.svg
+          git add .github/badges/test_coverage.svg  # Only add the badge file
           git commit -m "Update test coverage badge [skip ci]"
           git push
