@@ -2,9 +2,9 @@
 
 A comprehensive algorithmic trading system that integrates market scanning, technical analysis, and automated trading strategies using Interactive Brokers and Yahoo Finance data providers.
 
-| **Build Status** | **Code Coverage** | **Test Coverage** |
-|------------------|-------------------|-------------------|
-| [![Build Status](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml) | [![Code Coverage](.github/badges/code_coverage.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/code-coverage.yml) | ![Test Coverage](.github/badges/test_coverage.svg) |
+| **Build Status** | **Code Coverage** |
+|------------------|-------------------|
+| [![Build Status](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/build.yml) | [![Code Coverage](.github/badges/test_coverage.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/unit-test.yml) |
 
 - [Algorithmic Trading System](#algorithmic-trading-system)
   - [Features](#features)
