@@ -160,8 +160,17 @@ jobs:
           mkdir -p .github/badges
           curl -o .github/badges/test_coverage.svg "$BADGE_URL"
 
+      - name: Check for git changes
+        id: check-changes
+        run: |
+          if [[ $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Commit Badge
-        if: github.ref == 'refs/heads/main'
+        if: steps.check-changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
