@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v4
@@ -35,7 +37,7 @@ jobs:
         run: |
           pytest tests/ \
             --cov=src \
-            --cov-report=xml \
+            --cov-report=xml:coverage.xml \
             --cov-report=term \
             -v
 
@@ -160,10 +162,12 @@ jobs:
 
       - name: Commit Badge
         if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull
           git add .github/badges/test_coverage.svg
           git commit -m "Update test coverage badge [skip ci]"
-          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
+          git push
