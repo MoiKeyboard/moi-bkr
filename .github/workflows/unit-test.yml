@@ -45,7 +45,7 @@ jobs:
         if: always()  # Run even if tests fail
         run: |
           # Get coverage data from coverage.xml
-          TOTAL_LINES=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(sum(int(cls.attrib.get('lines', 0)) for cls in root.findall('.//class')))")
+          TOTAL_LINES=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(sum(len(cls.findall('.//line')) for cls in root.findall('.//class')))")
           TOTAL_HITS=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(sum(len([line for line in cls.findall('.//line') if line.attrib['hits'] != '0']) for cls in root.findall('.//class')))")
           COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib['line-rate']) * 100:.1f}\")")
           
