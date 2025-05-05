@@ -10,6 +10,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
+  repository-projects: write
 
 jobs:
   quality:
@@ -41,6 +43,8 @@ jobs:
           
       - name: Check if there are code changes after formatting
         id: git-check
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
         run: |
           if [[ $(git status --porcelain) ]]; then
             echo "Changes detected after formatting"
@@ -59,25 +63,54 @@ jobs:
             git commit -m "style: auto-format code with Black"
             git push origin $BRANCH_NAME
             
-            # Create Pull Request using GitHub CLI
-            gh auth login --with-token <<< "${{ secrets.PAT }}"
-            gh pr create \
+            # Create Pull Request using GitHub CLI (with token directly)
+            PR_URL=$(gh pr create \
               --title "style: auto-format code with Black" \
               --body "Automated PR to format code using Black formatter" \
               --base master \
-              --head $BRANCH_NAME
+              --head $BRANCH_NAME \
+              --json url -q .url)
+            
+            # Store PR URL for later use
+            echo "pr_url=${PR_URL}" >> $GITHUB_OUTPUT
           else
             echo "No changes detected after formatting"
           fi
 
       - name: Check code quality with Flake8
+        id: flake8
+        if: always()
         run: |
           echo "Checking code quality..."
           flake8 src/ --count --show-source --statistics --config .github/.flake8
           
-      - name: Report Status
+      - name: Generate Summary Report
         if: always()
         run: |
-          echo "Code Quality Check Summary:"
-          echo "- Black formatting: ${{ job.status }}"
-          echo "- Flake8 checks: ${{ job.status }}"
+          echo "# Code Quality Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Status" >> $GITHUB_STEP_SUMMARY
+          
+          # Check Black formatting status
+          if [[ "${{ steps.git-check.outcome }}" == "success" ]]; then
+            if [[ -n "${{ steps.git-check.outputs.pr_url }}" ]]; then
+              echo "- ✨ Black formatting: ✅ (Changes made and PR created)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ✨ Black formatting: ✅ (No changes needed)" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- ✨ Black formatting: ❌ (Failed)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check Flake8 status using the specific step outcome
+          if [[ "${{ steps.flake8.outcome }}" == "success" ]]; then
+            echo "- 🔍 Flake8 checks: ✅ (Passed)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- 🔍 Flake8 checks: ❌ (Failed)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Add PR link if it exists
+          if [[ -n "${{ steps.git-check.outputs.pr_url }}" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Auto-formatting Pull Request" >> $GITHUB_STEP_SUMMARY
+            echo "🔗 A pull request was created for code formatting changes: [${{ steps.git-check.outputs.pr_url }}](${{ steps.git-check.outputs.pr_url }})" >> $GITHUB_STEP_SUMMARY
+          fi
