@@ -16,6 +16,7 @@
   - [Pipeline Integration](#pipeline-integration)
   - [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
     - [Setup Instructions](#setup-instructions)
+    - [CI/CD Setup with GitHub Actions](#cicd-setup-with-github-actions)
     - [Working with SOPS](#working-with-sops)
     - [Troubleshooting](#troubleshooting)
 
@@ -216,6 +217,30 @@ To install SOPS and *age*, download one of the pre-built binaries provided for y
    echo 'export SOPS_AGE_KEY_FILE=certs/sops.age' >> ~/.bashrc
    source ~/.bashrc
    ```
+
+### CI/CD Setup with GitHub Actions
+
+1. **Add Age Key to GitHub Secrets**:
+   - Go to your repository's Settings > Secrets and Variables > Actions
+   - Create a new secret named `SOPS_AGE_KEY_FILE`
+   - Copy the ENTIRE contents of your `certs/sops.age` file, including comments:
+     ```
+     # created: YYYY-MM-DDT00:00:00+00:00
+     # public key: age1...
+     AGE-SECRET-KEY-...
+     ```
+   - Paste it as the secret value
+
+2. **Key Management**:
+   - Keep `certs/sops.age` secure and NEVER commit it to the repository
+   - Add `certs/sops.age` to `.gitignore`
+   - The public key in `.sops.yaml` must match the key in GitHub secrets
+   - If you need to rotate keys, update both `.sops.yaml` and the GitHub secret
+
+3. **Validation**:
+   - The [Config Env](#key-workflows) workflow automatically validates the key matches
+   - If keys don't match, encryption/decryption will fail
+   - Always test key changes in a development environment first
 
 ### Working with SOPS
 ```bash

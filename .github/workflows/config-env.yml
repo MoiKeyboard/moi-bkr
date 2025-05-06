@@ -36,16 +36,31 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyyaml
-          pip install yamllint
-          pip install yq
+          pip install pyyaml yamllint yq
+          # Install SOPS
+          curl -L https://github.com/mozilla/sops/releases/download/v3.7.3/sops-v3.7.3.linux.amd64 -o sops
+          chmod +x sops
+          sudo mv sops /usr/local/bin/
 
-      - name: Generate Secret Environment Variables
+      - name: Setup SOPS
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
+        run: |
+          # Verify the key matches our .sops.yaml configuration
+          PUBLIC_KEY=$(echo "$SOPS_AGE_KEY" | grep "public key:" | cut -d' ' -f3)
+          CONFIG_KEY=$(grep "age:" config/.sops.yaml | awk '{print $2}')
+          if [ "$PUBLIC_KEY" != "$CONFIG_KEY" ]; then
+            echo "Error: SOPS age key doesn't match .sops.yaml configuration"
+            echo "Expected: $CONFIG_KEY"
+            echo "Got: $PUBLIC_KEY"
+            exit 1
+          fi
+
+      - name: Generate Base Environment Variables
         run: |
           OUTPUT=$(python .github/workflows/scripts/generate_env.py)
           
-          # Add to GitHub summary with formatting
-          echo "### Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
+          echo "### Base Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
           echo "#### Warnings:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY
@@ -56,19 +71,69 @@ jobs:
           echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Format ENV file
+      - name: Generate Environment-Specific Variables
         run: |
-          # Sort the file alphabetically
-          sort config/base.env > config/base.env.tmp
+          for ENV in development production; do
+            echo "### Generating $ENV Environment Variables 🔧" >> $GITHUB_STEP_SUMMARY
+            
+            # Create environments directory if it doesn't exist
+            mkdir -p config/environments
+            
+            OUTPUT=$(python .github/workflows/scripts/generate_env.py --environment $ENV)
+            
+            echo "#### $ENV Warnings:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### $ENV Results:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Format ENV Files
+        run: |
+          # Function to format env file
+          format_env_file() {
+            local file=$1
+            if [ -f "$file" ]; then
+              # Sort and clean the file
+              sort "$file" > "$file.tmp"
+              tr -d '\r' < "$file.tmp" > "$file.clean"
+              mv "$file.clean" "$file"
+              rm "$file.tmp"
+              echo "Formatted $file"
+            fi
+          }
           
-          # Remove Windows carriage returns
-          tr -d '\r' < config/base.env.tmp > config/base.env.clean
+          # Format base.env
+          format_env_file "config/base.env"
           
-          # Move the cleaned file back to original
-          mv config/base.env.clean config/base.env
+          # Format environment-specific files
+          for ENV in development production; do
+            format_env_file "config/environments/$ENV.env"
+          done
+
+      - name: Encrypt ENV Files
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Function to encrypt file if it exists
+          encrypt_file() {
+            local file=$1
+            if [ -f "$file" ]; then
+              sops -e -i "$file"
+              echo "Encrypted $file"
+            fi
+          }
           
-          # Clean up temporary file
-          rm config/base.env.tmp
+          # Encrypt base.env
+          encrypt_file "config/base.env"
+          
+          # Encrypt environment files
+          for ENV in development production; do
+            encrypt_file "config/environments/$ENV.env"
+          done
 
       - name: Check for configuration changes
         id: check-changes
@@ -84,8 +149,8 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add config/base.env
-          git commit -m "chore: sort and format base.env file"
+          git add config/base.env config/environments/*.env
+          git commit -m "chore: update and encrypt environment files"
           git push origin main
 
       - name: Report Status
@@ -93,3 +158,7 @@ jobs:
         run: |
           echo "Config Env Summary:"
           echo "- Sync status: ${{ job.status }}"
+          echo "- Base env file: $(test -f config/base.env && echo '✅' || echo '❌')"
+          for ENV in development production; do
+            echo "- $ENV env file: $(test -f config/environments/$ENV.env && echo '✅' || echo '❌')"
+          done
