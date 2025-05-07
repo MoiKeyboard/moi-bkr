@@ -1,3 +1,4 @@
+import argparse
 import re
 import yaml
 from pathlib import Path
@@ -168,41 +169,69 @@ def save_env_file(content: List[str], file_path: Path) -> None:
     except Exception as e:
         print(f"Error saving {file_path}: {e}")
 
-def generate_base_env() -> None:
+def parse_args():
+    parser = argparse.ArgumentParser(description='Generate environment files from YAML configuration')
+    parser.add_argument('--config-dir', type=str, default='config',
+                      help='Directory containing configuration files')
+    parser.add_argument('--environment', type=str,
+                      help='Environment to generate (e.g., development, production)')
+    parser.add_argument('--input-yaml', type=str, default='base.yml',
+                      help='Input YAML file name')
+    parser.add_argument('--output-dir', type=str,
+                      help='Directory for output ENV files')
+    return parser.parse_args()
+
+def generate_env(config_dir: Path, environment: str = None, 
+                input_yaml: str = 'base.yml', output_dir: Path = None) -> None:
     """
-    Main function to generate base.env from base.yml environment variables.
+    Generate ENV file from YAML configuration.
+    
+    Args:
+        config_dir: Path to configuration directory
+        environment: Optional environment name (e.g., development, production)
+        input_yaml: Name of input YAML file
+        output_dir: Optional output directory for ENV files
     """
-   # Get the script's directory and project root
-    script_dir = Path(__file__).parent
-    project_root = script_dir.parent.parent.parent  # Go up to IBKR root
+    config_dir = Path(config_dir)
+    if output_dir is None:
+        output_dir = config_dir / 'environments' if environment else config_dir
     
-    # Use absolute paths
-    config_dir = project_root / 'config'
-    config_dir.mkdir(exist_ok=True)  # Create config dir if it doesn't exist
+    # Determine input and output files
+    yaml_file = config_dir / input_yaml
+    if environment:
+        env_file = output_dir / f'{environment}.env'
+    else:
+        env_file = config_dir / 'base.env'
     
-    base_yml = config_dir / 'base.yml'
-    base_env = config_dir / 'base.env'
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Load base configuration
-    base_config = load_yaml(base_yml)
+    # Load configuration
+    base_config = load_yaml(yaml_file)
     if not base_config:
-        print("Error: base.yml is empty or invalid")
+        print(f"Error: {yaml_file} is empty or invalid")
         return
     
     # Get required variables
     required_vars = set(get_required_vars(base_config))
     
     # Read existing content
-    existing_lines = read_existing_env_file(base_env)
+    existing_lines = read_existing_env_file(env_file)
     
     # Update content
     updated_lines = update_env_content(existing_lines, required_vars)
     
     # Save updated content
-    save_env_file(updated_lines, base_env)
+    save_env_file(updated_lines, env_file)
     
     # Print summary
     print(f"Found {len(required_vars)} required variables")
 
 if __name__ == '__main__':
-    generate_base_env()
+    args = parse_args()
+    generate_env(
+        config_dir=args.config_dir,
+        environment=args.environment,
+        input_yaml=args.input_yaml,
+        output_dir=args.output_dir if args.output_dir else None
+    )

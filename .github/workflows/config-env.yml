@@ -58,7 +58,9 @@ jobs:
 
       - name: Generate Base Environment Variables
         run: |
-          OUTPUT=$(python .github/workflows/scripts/generate_env.py)
+          OUTPUT=$(python .github/workflows/scripts/generate_env.py \
+            --config-dir config \
+            --input-yaml base.yml)
           
           echo "### Base Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
           echo "#### Warnings:" >> $GITHUB_STEP_SUMMARY
@@ -76,10 +78,11 @@ jobs:
           for ENV in development production; do
             echo "### Generating $ENV Environment Variables 🔧" >> $GITHUB_STEP_SUMMARY
             
-            # Create environments directory if it doesn't exist
-            mkdir -p config/environments
-            
-            OUTPUT=$(python .github/workflows/scripts/generate_env.py --environment $ENV)
+            OUTPUT=$(python .github/workflows/scripts/generate_env.py \
+              --config-dir config \
+              --environment $ENV \
+              --input-yaml base.yml \
+              --output-dir config/environments)
             
             echo "#### $ENV Warnings:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
