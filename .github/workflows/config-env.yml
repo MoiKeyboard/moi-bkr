@@ -46,9 +46,16 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
         run: |
-          # Verify the key matches our .sops.yaml configuration
-          PUBLIC_KEY=$(echo "$SOPS_AGE_KEY" | grep "public key:" | cut -d' ' -f3)
-          CONFIG_KEY=$(grep "age:" config/.sops.yaml | awk '{print $2}')
+          # Extract public key using awk - more robust against whitespace variations
+          PUBLIC_KEY=$(echo "$SOPS_AGE_KEY" | awk '/public key:/ {print $4}')
+          CONFIG_KEY=$(yq eval '.creation_rules[0].age' config/.sops.yaml)
+          
+          # Validate we got a key
+          if [ -z "$PUBLIC_KEY" ]; then
+            echo "Error: Could not find public key in SOPS_AGE_KEY"
+            exit 1
+          fi
+          
           if [ "$PUBLIC_KEY" != "$CONFIG_KEY" ]; then
             echo "Error: SOPS age key doesn't match .sops.yaml configuration"
             echo "Expected: $CONFIG_KEY"
