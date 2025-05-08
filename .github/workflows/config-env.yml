@@ -128,26 +128,6 @@ jobs:
             format_env_file "config/environments/$ENV.env"
           done
 
-      - name: Encrypt ENV Files
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # Function to encrypt file if it exists
-          encrypt_file() {
-            local file=$1
-            if [ -f "$file" ]; then
-              sops -e -i "$file"
-              echo "Encrypted $file"
-            fi
-          }
-          
-          # Encrypt base.env
-          encrypt_file "config/base.env"
-          
-          # Encrypt environment files
-          for ENV in development production; do
-            encrypt_file "config/environments/$ENV.env"
-          done
-
       - name: Check for configuration changes
         id: check-changes
         run: |
