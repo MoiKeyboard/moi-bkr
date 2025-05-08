@@ -182,7 +182,7 @@ def parse_args():
     return parser.parse_args()
 
 def generate_env(config_dir: Path, environment: str = None, 
-                input_yaml: str = 'base.yml', output_dir: Path = None) -> None:
+                input_yaml: str = 'base.yml', output_dir: str = None) -> None:
     """
     Generate ENV file from YAML configuration.
     
@@ -192,7 +192,10 @@ def generate_env(config_dir: Path, environment: str = None,
         input_yaml: Name of input YAML file
         output_dir: Optional output directory for ENV files
     """
+    # Convert string paths to Path objects
     config_dir = Path(config_dir)
+    output_dir = Path(output_dir) if output_dir else None
+    
     if output_dir is None:
         output_dir = config_dir / 'environments' if environment else config_dir
     
