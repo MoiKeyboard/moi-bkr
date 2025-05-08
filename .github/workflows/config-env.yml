@@ -46,12 +46,12 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
         run: |
-          # Extract public key using awk - more robust against whitespace variations
+          echo "Extracting public key from SOPS_AGE_KEY secret"
           PUBLIC_KEY=$(echo "$SOPS_AGE_KEY" | awk '/public key:/ {print $4}' | tr -d '\n\r')
-          # Use Python yq syntax and trim any whitespace
-          CONFIG_KEY=$(yq --yaml-output '.creation_rules[0].age' config/.sops.yaml | tr -d '\n\r')
+          echo "Extracting public key from .sops.yaml"
+          CONFIG_KEY=$(yq --yaml-output '.creation_rules[0].age' config/.sops.yaml | sed 's/\.\.\.$//' | tr -d '\n\r')
           
-          # Debug output with string lengths and hexdump
+          # Debug output with string lengths and hex dump
           echo "Public key length: ${#PUBLIC_KEY}"
           echo "Config key length: ${#CONFIG_KEY}"
           echo "Public key:"
