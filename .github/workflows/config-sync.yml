@@ -47,7 +47,22 @@ jobs:
 
       - name: Sync Configuration Files
         run: |
-          python .github/workflows/scripts/config_sync.py
+          # First sync base.yml (sorts it)
+          python .github/workflows/scripts/config_sync.py --config-dir config
+          
+          # Then sync each environment
+          for ENV in development production; do
+            echo "Syncing $ENV configuration..."
+            python .github/workflows/scripts/config_sync.py \
+              --config-dir config \
+              --environment "$ENV"
+            
+            echo "### $ENV Configuration Sync Results 📝" >> $GITHUB_STEP_SUMMARY
+            echo "#### Results:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "Updated and sorted $ENV.yml" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          done
 
       - name: Check for configuration changes
         id: check-changes
