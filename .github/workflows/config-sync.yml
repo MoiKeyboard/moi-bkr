@@ -140,13 +140,14 @@ jobs:
             # Get PR number after successful creation
             PR_NUM=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json number -q '.number')
             PR_URL=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json url -q '.url')
+            PR_TITLE=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json title -q '.title')
             echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
             echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
             echo "created=true" >> $GITHUB_OUTPUT
             
             # Add PR link to step summary
             echo "## 🔄 ${{ github.workflow }} Pull Request" >> $GITHUB_STEP_SUMMARY
-            echo "Created PR [#$PR_NUM]($PR_URL) for configuration sync" >> $GITHUB_STEP_SUMMARY
+            echo "Created pull request: [$PR_TITLE (#$PR_NUM)]($PR_URL)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
             echo "Successfully created PR #$PR_NUM"
