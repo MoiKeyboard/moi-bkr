@@ -2,6 +2,7 @@ import argparse
 import yaml
 from pathlib import Path
 from typing import Dict, Any, OrderedDict
+import sys  # Add this import
 
 def parse_args():
     """
@@ -33,7 +34,7 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
         with open(file_path, 'r') as f:
             return yaml.safe_load(f) or {}
     except Exception as e:
-        print(f"Error loading {file_path}: {e}")
+        print(f"Error loading {file_path}: {e}", flush=True)  # Add flush=True
         return {}
 
 def sort_dict_alphabetically(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,7 +75,7 @@ def save_yaml(data: Dict[str, Any], file_path: Path) -> None:
         with open(file_path, 'w') as f:
             yaml.dump(sorted_data, f, default_flow_style=False)
     except Exception as e:
-        print(f"Error saving {file_path}: {e}")
+        print(f"Error saving {file_path}: {e}", flush=True)  # Add flush=True
 
 def deep_update(base: Dict[str, Any], env: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -143,23 +144,29 @@ def sync_configs(config_dir: str, environment: str = None) -> None:
     env_dir.mkdir(exist_ok=True)
     
     # Load and sort base configuration
+    print(f"Loading base configuration from {base_file}", flush=True)  # Add flush=True
     base_config = load_yaml(base_file)
     if not base_config:
-        print("Error: base.yml is empty or invalid")
+        print("Error: base.yml is empty or invalid", flush=True)  # Add flush=True
         return
     
     # Always sort and save base config
+    print(f"Sorting and saving base.yml", flush=True)  # Add flush=True
     save_yaml(base_config, base_file)
-    print(f"Sorted base.yml alphabetically")
+    print(f"Sorted base.yml alphabetically", flush=True)  # Add flush=True
     
     # If environment is specified, sync that environment
     if environment:
         env_file = env_dir / f'{environment}.yml'
+        print(f"Syncing {environment} configuration...", flush=True)  # Add flush=True
         existing_config = load_yaml(env_file) if env_file.exists() else {}
         updated_config = deep_update(base_config, existing_config)
         save_yaml(updated_config, env_file)
-        print(f"Updated {environment}.yml")
+        print(f"Updated {environment}.yml", flush=True)  # Add flush=True
 
 if __name__ == '__main__':
+    # Force Python to run unbuffered
+    sys.stdout.reconfigure(line_buffering=True)  # Python 3.7+
+    
     args = parse_args()
     sync_configs(args.config_dir, args.environment)

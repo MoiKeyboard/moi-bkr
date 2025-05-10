@@ -47,22 +47,26 @@ jobs:
 
       - name: Sync Configuration Files
         run: |
+          echo "Starting configuration sync process..."
           # First sync base.yml (sorts it)
-          python .github/workflows/scripts/config_sync.py --config-dir config
+          echo "Syncing base.yml..."
+          python .github/workflows/scripts/config_sync.py --config-dir config > /tmp/sync_output.txt
           
           # Then sync each environment
           for ENV in development production; do
             echo "Syncing $ENV configuration..."
             python .github/workflows/scripts/config_sync.py \
               --config-dir config \
-              --environment "$ENV"
+              --environment "$ENV" >> /tmp/sync_output.txt
             
+            # Append the output to step summary
             echo "### $ENV Configuration Sync Results 📝" >> $GITHUB_STEP_SUMMARY
             echo "#### Results:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "Updated and sorted $ENV.yml" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/sync_output.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           done
+          echo "Configuration sync completed."
 
       - name: Check for configuration changes
         id: check-changes
@@ -135,9 +139,18 @@ jobs:
             
             # Get PR number after successful creation
             PR_NUM=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json number -q '.number')
+            PR_URL=$(gh pr view "${{ steps.create-branch.outputs.branch_name }}" --json url -q '.url')
             echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
             echo "created=true" >> $GITHUB_OUTPUT
+            
+            # Add PR link to step summary
+            echo "## 🔄 ${{ github.workflow }} Pull Request" >> $GITHUB_STEP_SUMMARY
+            echo "Created PR [#$PR_NUM]($PR_URL) for configuration sync" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
             echo "Successfully created PR #$PR_NUM"
+            echo "PR URL: $PR_URL"
           else
             echo "Failed to create PR"
             echo "created=false" >> $GITHUB_OUTPUT
