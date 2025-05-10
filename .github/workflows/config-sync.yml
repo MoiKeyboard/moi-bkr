@@ -143,23 +143,22 @@ jobs:
             echo "created=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: List PRs to close
+      - name: List old PRs to close
         if: steps.create-pr.outputs.created == 'true'
         id: list-old-prs
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          # List open PRs with head branch matching auto/config-sync-*
-          echo "Looking for PRs with auto/config-sync- branches..."
-          NEW_PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
-          echo "Newly created PR has number #${NEW_PR_NUM}"
+          echo "Listing old PRs to close..."
+          rm -f /tmp/prs_to_close.txt # Ensure file is clean
 
-          # Use simpler gh pr list and filter with grep/awk
-          echo "Searching for auto/config-sync PRs to close:"
-          gh pr list --state open --search "head:auto/config-sync-" > /tmp/found_prs.txt || true
+          # Get the current branch name
+          CURRENT_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
+          echo "Current branch ($CURRENT_BRANCH) will be preserved."
 
-          # Filter out the one we just created
-          grep -v "	#${NEW_PR_NUM}	" /tmp/found_prs.txt > /tmp/prs_to_close.txt || true
+          # List PRs and filter out the current one
+          gh pr list --state open --search "head:auto/config-sync-" | \
+            grep -v "$CURRENT_BRANCH" > /tmp/prs_to_close.txt || true
 
           echo "PRs to close (from /tmp/prs_to_close.txt):"
           if [ -s /tmp/prs_to_close.txt ]; then
@@ -194,33 +193,25 @@ jobs:
 
           echo "closed_prs=true" >> $GITHUB_OUTPUT
 
-      - name: List branches to clean up
+      - name: List old branches to clean up
         if: steps.create-pr.outputs.created == 'true'
-        id: list-branches
+        id: list-old-branches
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          echo "Listing branches to clean up..."
+          echo "Listing old branches to clean up..."
           rm -f /tmp/branches_to_delete.txt # Ensure file is clean
 
-          # Fetch all remote branches
-          git fetch origin
+          # Get the current branch name
+          CURRENT_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
+          echo "Current branch ($CURRENT_BRANCH) will be preserved."
 
-          # Skip the branch we just created
-          NEW_BRANCH="${{ steps.create-branch.outputs.branch_name }}"
-          echo "Current branch ($NEW_BRANCH) will be preserved."
-
-          # Debug: Show all remote branches
-          echo "All remote branches:"
-          git branch -r
-
-          # Get all branches and filter, excluding the current one (with whitespace trimming)
-          echo "Processing branches..."
+          # List branches and filter out the current one
           git branch -r | \
             grep "origin/auto/config-sync-" | \
             sed 's/origin\///' | \
-            tr -d '[:space:]' | \
-            grep -Fxv "${NEW_BRANCH}" > /tmp/branches_to_delete.txt || true
+            grep -v "^$" | \
+            grep -v "^${CURRENT_BRANCH}$" > /tmp/branches_to_delete.txt || true
 
           echo "Branches to delete (from /tmp/branches_to_delete.txt):"
           if [ -s /tmp/branches_to_delete.txt ]; then
@@ -232,7 +223,7 @@ jobs:
           fi
 
       - name: Clean up branches
-        if: steps.list-branches.outputs.has_branches_to_delete == 'true'
+        if: steps.list-old-branches.outputs.has_branches_to_delete == 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
