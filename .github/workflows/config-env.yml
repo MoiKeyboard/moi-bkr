@@ -84,6 +84,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Generate Environment-Specific Variables
+        shell: bash
         run: |
           for ENV in development production; do
             echo "### Generating $ENV Environment Variables 🔧" >> $GITHUB_STEP_SUMMARY
