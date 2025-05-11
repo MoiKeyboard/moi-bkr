@@ -86,14 +86,40 @@ jobs:
       - name: Generate Environment-Specific Variables
         shell: bash
         run: |
+          # Debug: List directory contents
+          echo "Current directory contents:"
+          ls -la
+          
+          echo "Config directory contents:"
+          ls -la config/
+          
+          echo "Config/environments directory contents:"
+          ls -la config/environments/
+          
+          # Debug: Check if base.yml exists
+          if [ -f "config/base.yml" ]; then
+            echo "base.yml exists"
+          else
+            echo "base.yml does not exist"
+            exit 1
+          fi
+          
           for ENV in development production; do
             echo "### Generating $ENV Environment Variables 🔧" >> $GITHUB_STEP_SUMMARY
+            
+            # Debug: Print the full command
+            echo "Running command:"
+            echo "python .github/workflows/scripts/generate_env.py --config-dir config --environment $ENV --input-yaml base.yml --output-dir config/environments"
             
             OUTPUT=$(python .github/workflows/scripts/generate_env.py \
               --config-dir config \
               --environment $ENV \
               --input-yaml base.yml \
-              --output-dir config/environments)
+              --output-dir config/environments 2>&1)
+            
+            # Debug: Print the full output
+            echo "Script output:"
+            echo "$OUTPUT"
             
             echo "#### $ENV Warnings:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
