@@ -17,7 +17,9 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
     """
     try:
         with open(file_path, 'r') as f:
-            return yaml.safe_load(f) or {}
+            base_config = yaml.safe_load(f) or {}
+            print(f"Loaded config from {file_path}: {base_config}")
+            return base_config
     except Exception as e:
         print(f"Error loading {file_path}: {e}")
         return {}
@@ -215,7 +217,7 @@ def generate_env(config_dir: Path, environment: str = None,
         base_config = load_yaml(yaml_file)
         if not base_config:
             print(f"Error: {yaml_file} is empty or invalid")
-            return
+            return 1  # Explicitly return error code
         
         # Get required variables
         required_vars = set(get_required_vars(base_config))
