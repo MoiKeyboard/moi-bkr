@@ -86,40 +86,22 @@ jobs:
       - name: Generate Environment-Specific Variables
         shell: bash
         run: |       
-          # Debug: Check if base.yml exists
-          if [ -f "config/base.yml" ]; then
-            echo "base.yml exists"
-          else
-            echo "base.yml does not exist"
-            exit 1
-          fi
-          
           for ENV in development production; do
             echo "### Generating $ENV Environment Variables 🔧" >> $GITHUB_STEP_SUMMARY
-            
-            # Debug: Print the full command
-            echo "Running command:"
-            echo "python .github/workflows/scripts/generate_env.py --config-dir config --environment $ENV --input-yaml base.yml --output-dir config/environments"
-            
-            # Run the script and capture output, but don't fail on warnings
             OUTPUT=$(python .github/workflows/scripts/generate_env.py \
               --config-dir config \
               --environment $ENV \
               --input-yaml base.yml \
               --output-dir config/environments 2>&1)
-            
-            # Debug: Print the full output
             echo "Script output:"
             echo "$OUTPUT"
-            
             echo "#### $ENV Warnings:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
-            
             echo "#### $ENV Results:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
           done
 
