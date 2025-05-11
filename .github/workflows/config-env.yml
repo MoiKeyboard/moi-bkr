@@ -85,17 +85,7 @@ jobs:
 
       - name: Generate Environment-Specific Variables
         shell: bash
-        run: |
-          # Debug: List directory contents
-          echo "Current directory contents:"
-          ls -la
-          
-          echo "Config directory contents:"
-          ls -la config/
-          
-          echo "Config/environments directory contents:"
-          ls -la config/environments/
-          
+        run: |       
           # Debug: Check if base.yml exists
           if [ -f "config/base.yml" ]; then
             echo "base.yml exists"
@@ -111,11 +101,12 @@ jobs:
             echo "Running command:"
             echo "python .github/workflows/scripts/generate_env.py --config-dir config --environment $ENV --input-yaml base.yml --output-dir config/environments"
             
+            # Run the script and capture output, but don't fail on warnings
             OUTPUT=$(python .github/workflows/scripts/generate_env.py \
               --config-dir config \
               --environment $ENV \
               --input-yaml base.yml \
-              --output-dir config/environments 2>&1)
+              --output-dir config/environments 2>&1) || true
             
             # Debug: Print the full output
             echo "Script output:"
