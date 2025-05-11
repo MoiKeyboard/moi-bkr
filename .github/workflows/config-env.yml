@@ -106,7 +106,7 @@ jobs:
               --config-dir config \
               --environment $ENV \
               --input-yaml base.yml \
-              --output-dir config/environments 2>&1) || true
+              --output-dir config/environments 2>&1)
             
             # Debug: Print the full output
             echo "Script output:"

@@ -220,15 +220,15 @@ def generate_env(config_dir: Path, environment: str = None,
 
     base_config = load_yaml(yaml_file)
     if not base_config:
-        print(f"Error: {yaml_file} is empty or invalid")  # For summary/logs
-        raise ValueError(f"{yaml_file} is empty or invalid")  # For error handling
+        print(f"Error: {yaml_file} is empty or invalid")
+        raise ValueError(f"{yaml_file} is empty or invalid")
 
     required_vars = set(get_required_vars(base_config))
     existing_lines = read_existing_env_file(env_file)
     updated_lines = update_env_content(existing_lines, required_vars)
     save_env_file(updated_lines, env_file)
     print(f"Found {len(required_vars)} required variables")
-    return 0  # Explicit success
+    return 0
 
 if __name__ == '__main__':
     try:
