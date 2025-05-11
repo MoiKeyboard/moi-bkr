@@ -3,6 +3,7 @@ import re
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Set, List, Tuple
+import sys
 
 def load_yaml(file_path: Path) -> Dict[str, Any]:
     """
@@ -192,49 +193,58 @@ def generate_env(config_dir: Path, environment: str = None,
         input_yaml: Name of input YAML file
         output_dir: Optional output directory for ENV files
     """
-    # Convert string paths to Path objects
-    config_dir = Path(config_dir)
-    output_dir = Path(output_dir) if output_dir else None
-    
-    if output_dir is None:
-        output_dir = config_dir / 'environments' if environment else config_dir
-    
-    # Determine input and output files
-    yaml_file = config_dir / input_yaml
-    if environment:
-        env_file = output_dir / f'{environment}.env'
-    else:
-        env_file = config_dir / 'base.env'
-    
-    # Create output directory if it doesn't exist
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Load configuration
-    base_config = load_yaml(yaml_file)
-    if not base_config:
-        print(f"Error: {yaml_file} is empty or invalid")
-        return
-    
-    # Get required variables
-    required_vars = set(get_required_vars(base_config))
-    
-    # Read existing content
-    existing_lines = read_existing_env_file(env_file)
-    
-    # Update content
-    updated_lines = update_env_content(existing_lines, required_vars)
-    
-    # Save updated content
-    save_env_file(updated_lines, env_file)
-    
-    # Print summary
-    print(f"Found {len(required_vars)} required variables")
+    try:
+        # Convert string paths to Path objects
+        config_dir = Path(config_dir)
+        output_dir = Path(output_dir) if output_dir else None
+        
+        if output_dir is None:
+            output_dir = config_dir / 'environments' if environment else config_dir
+        
+        # Determine input and output files
+        yaml_file = config_dir / input_yaml
+        if environment:
+            env_file = output_dir / f'{environment}.env'
+        else:
+            env_file = config_dir / 'base.env'
+        
+        # Create output directory if it doesn't exist
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load configuration
+        base_config = load_yaml(yaml_file)
+        if not base_config:
+            print(f"Error: {yaml_file} is empty or invalid")
+            return
+        
+        # Get required variables
+        required_vars = set(get_required_vars(base_config))
+        
+        # Read existing content
+        existing_lines = read_existing_env_file(env_file)
+        
+        # Update content
+        updated_lines = update_env_content(existing_lines, required_vars)
+        
+        # Save updated content
+        save_env_file(updated_lines, env_file)
+        
+        # Print summary
+        print(f"Found {len(required_vars)} required variables")
+        
+        # Don't exit with error if we only have warnings
+        return 0  # Explicitly return success
+        
+    except Exception as e:
+        print(f"Error in generate_env: {e}")
+        return 1  # Return error code only for actual errors
 
 if __name__ == '__main__':
     args = parse_args()
-    generate_env(
+    exit_code = generate_env(
         config_dir=args.config_dir,
         environment=args.environment,
         input_yaml=args.input_yaml,
         output_dir=args.output_dir if args.output_dir else None
     )
+    sys.exit(exit_code)  # Exit with the appropriate code
