@@ -166,9 +166,17 @@ def save_env_file(content: List[str], file_path: Path) -> None:
         file_path: Path where to save the file
     """
     try:
-        with open(file_path, 'w') as f:
-            f.write('\n'.join(content) + '\n')
-        print(f"Generated {file_path}")
+        old_content = ""
+        if file_path.exists():
+            with open(file_path, 'r') as f:
+                old_content = f.read()
+        new_content = '\n'.join(content) + '\n'
+        if old_content == new_content:
+            print(f"No changes to {file_path}")
+        else:
+            with open(file_path, 'w') as f:
+                f.write(new_content)
+            print(f"Generated {file_path}")
     except Exception as e:
         print(f"Error saving {file_path}: {e}")
 
@@ -240,6 +248,7 @@ def generate_env(config_dir: Path, environment: str = None,
     except Exception as e:
         print(f"Error in generate_env: {e}")
         return 1  # Return error code only for actual errors
+    return 1  # Defensive: should never reach here, but just in case
 
 if __name__ == '__main__':
     args = parse_args()
