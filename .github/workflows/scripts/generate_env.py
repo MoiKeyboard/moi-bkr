@@ -228,6 +228,7 @@ def generate_env(config_dir: Path, environment: str = None,
     updated_lines = update_env_content(existing_lines, required_vars)
     save_env_file(updated_lines, env_file)
     print(f"Found {len(required_vars)} required variables")
+    print("Returning from generate_env with code 0")
     return 0
 
 if __name__ == '__main__':
@@ -239,6 +240,7 @@ if __name__ == '__main__':
             input_yaml=args.input_yaml,
             output_dir=args.output_dir if args.output_dir else None
         )
+        print(f"Exiting with code {exit_code}")
         sys.exit(exit_code)
     except Exception as e:
         print(f"Error: {e}")
