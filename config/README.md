@@ -10,15 +10,14 @@
     - [`schema.yml` TODO](#schemayml-todo)
     - [`Environment Files`](#environment-files)
   - [Key Workflows](#key-workflows)
-  - [Usage Examples](#usage-examples)
-  - [Setting Up Environments](#setting-up-environments)
+  - [Developer Usage Examples](#developer-usage-examples)
   - [Validation](#validation)
-  - [Pipeline Integration](#pipeline-integration)
   - [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
     - [Setup Instructions](#setup-instructions)
     - [CI/CD Setup with GitHub Actions](#cicd-setup-with-github-actions)
     - [Working with SOPS](#working-with-sops)
     - [Troubleshooting](#troubleshooting)
+    - [Handling Encrypted Environment Files in Workflows](#handling-encrypted-environment-files-in-workflows)
 
 ## Objectives
 
@@ -54,26 +53,28 @@ Following the [12-factor app](https://12factor.net/) methodology, our configurat
 ## File Structure
 ```
 config/
-├── base.env # Default secret template
+├── base.env # Default secret template (encrypted)
 ├── base.yml # Default configuration value
-├── .sops.yml # Configuration file for SOPS
+├── .sops.yaml # Configuration file for SOPS
 ├── schema.yml # Validation rules
-├── environments/
-│ ├── development.yml # Dev overrides (non-secrets)
-│ └── production.yml # Prod overrides (non-secrets)
-├── development.env # Gitignored secret files
-└── production.env # Gitignored secret files
+└── environments/
+    ├── development.yml # Dev overrides (non-secrets)
+    ├── production.yml # Prod overrides (non-secrets)
+    ├── development.env # Dev secrets (encrypted)
+    └── production.env # Prod secrets (encrypted)
 ```
 
 
 ## Key Files
 
 ### `base.yml`
-- Contains all configuration including encrypted secrets
+- Contains all default configuration including encrypted secrets
 - Secrets are encrypted using SOPS
 - Example of encrypted value:
   ```yaml
-  api_key: ENC[AES256_GCM,data=...] # Encrypted secret
+  market_api:
+    url: ${MARKET_API_URL} 
+    key: ${MARKET_API_KEY}
   ```
 
 ### `.sops.yaml`
@@ -110,17 +111,26 @@ config/
 
 ## Key Workflows
 1. `config-sync`
+    - [![Config Sync](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml)
     - Auto-triggers when `base.yml` is modified
-    - Formats and lins base and environment YAML files
+    - Formats and lints base and environment YAML files
     - Syncs `base.yml` with environment YAML configuration files
-    - Creates necessary pull reuqests to merge into main branch
-2. `generate-env`
-    - Auto-triggers when `base.yml` is modified
-    - Generates `base.env` file
-    - Fills up secret variables found in `base.yml`
-    - Warns for unused secrets
+    - Creates necessary pull requests to merge into main branch
+    - Preserves environment-specific overrides
+    - Sorts all configuration keys alphabetically
+    - **Note**: Must complete before `config-env` can run
 
-## Usage Examples
+2. `config-env`
+    - [![Config Env](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-env.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-env.yml)
+    - Runs after Config Sync PR is merged to main
+    - Generates `base.env` from `base.yml`
+    - Creates and manages environment-specific `.env` files
+    - Handles encryption/decryption with SOPS
+    - Formats and sorts all `.env` files
+    - Provides verbose output for changes
+    - **Note**: Depends on successful completion of `config-sync`
+
+## Developer Usage Examples
 For detailed developer usage and best practices, see the [Configuration System Developer Guide](../src/config/README.md).
 
 Basic example:
@@ -131,30 +141,22 @@ cfg = Config()
 print(cfg.get("market_analysis.tickers"))  # Gets resolved value
 ```
 
-## Setting Up Environments
-```bash
-cp base.env development.env # Edit with real values
-cp base.yml development.yml # Edit with real values
-```
-
 ## Validation
-```bash
-TODO .........validate on schema.yml.........
-```
-## Pipeline Integration
+The configuration system includes several validation steps:
 
-1. **Configuration Sync** [![Config Sync](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-sync.yml)
-   - Triggers on changes to `base.yml` in main branch
-   - Formats and lints YAML configuration files
-   - Creates PR with synchronized environment configurations
-   - Maintains single active sync PR by closing outdated ones
-   
-2. **Generate Environment Variables** [![Config Env](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-env.yml/badge.svg)](https://github.com/MoiKeyboard/moi-bkr/actions/workflows/config-env.yml)
-   - Runs after Config Sync PR is merged to main
-   - Generates `base.env` from `base.yml`
-   - Validates environment variable references
-   - Sorts and formats environment files
-   - Can be manually triggered via workflow dispatch
+1. **YAML Validation**
+   - All YAML files are linted using `yamllint`
+   - Files are formatted using `prettier`
+
+2. **Secret Validation**
+   - SOPS key validation in CI/CD
+   - Environment variable reference validation
+   - Required secrets presence check
+
+3. **Schema Validation** (TODO)
+   - JSON Schema validation rules
+   - Type checking for configuration values
+   - Required fields validation
 
 ## Secret Management with Secrets OPerationS (SOPS)
 SOPS encrypts individual values within structured files (YAML, JSON, ENV, etc.), enabling secure version control of secrets. Key benefits:
@@ -210,7 +212,6 @@ To install SOPS and *age*, download one of the pre-built binaries provided for y
        age: age1246nt5k0uh6vhh0kl5u7ne7vtctf6dezwq5dan380zas82muvehs3ckcd5
        encrypted_regex: '^(api_key|password|token|secret|url|allowed_hosts|allowed_users)$'
    ```
-
 4. **Set Up Environment in WSL**:
    ```bash
    # Add to your ~/.bashrc
@@ -245,13 +246,13 @@ To install SOPS and *age*, download one of the pre-built binaries provided for y
 ### Working with SOPS
 ```bash
 # Encrypt secrets environment file
-sops --config config/.sops.yaml encrypt config/base.env
+sops --config config/.sops.yaml encrypt -i config/base.env
 
 # Edit encrypted secrets environment file variables 
 sops --config config/.sops.yaml edit config/base.env
 
 # Decrypt secrets environment file
-sops --config config/.sops.yaml decrypt config/base.env
+sops --config config/.sops.yaml decrypt -i config/base.env
 ```
 
 ### Troubleshooting
@@ -305,3 +306,68 @@ sops --config config/.sops.yaml decrypt config/base.env
    - "failed to encrypt new data key with master key" → PGP key in environment
    - "no master keys found" → *age* key not configured correctly
    - "could not get data key" → missing or invalid *age* key file
+
+### Handling Encrypted Environment Files in Workflows
+
+The system manages encrypted environment files through a layered approach:
+
+1. **Base Environment (`base.env`)**
+   - Contains default secret values for all environments
+   - Encrypted using SOPS with age encryption
+   - Serves as the template for environment-specific secrets
+
+2. **Environment-Specific Files (`environments/[env].env`)**
+   - Contains environment-specific secret overrides
+   - Also encrypted using SOPS with age encryption
+   - Can override or extend secrets from `base.env`
+
+3. **Workflow Process**
+   The following rules are applied when `base.env` is modified:
+
+   a. **Updates to Existing Secrets**
+      - If a secret in `base.env` is modified and matches the value in `environments/[env].env`, the environment file is updated
+      - If values differ, the environment-specific value is preserved (override)
+
+   b. **New Secrets**
+      - When new secrets are added to `base.env`, they are automatically added to environment files with the same value
+      - Environment files can later override these values if needed
+
+   c. **Deleted Secrets**
+      - If a secret is removed from `base.env`, it is also removed from environment files
+      - This ensures consistency across environments
+
+4. **Workflow Steps**
+   ```bash
+   # 1. Decrypt both files
+   sops --config config/.sops.yaml decrypt -i config/base.env > /tmp/base.env
+   sops --config config/.sops.yaml decrypt -i config/environments/[env].env > /tmp/[env].env
+
+   # 2. Merge and update environment file
+   python merge_secrets.py [env]
+
+   # 3. Re-encrypt environment file
+   sops --config config/.sops.yaml encrypt -i /tmp/[env].env > config/environments/[env].env
+   ```
+
+5. **Verbose Output**
+   The workflow provides detailed feedback about changes:
+   ```
+   Processing [env] environment:
+   Added: NEW_SECRET1, NEW_SECRET2
+   Updated: MODIFIED_SECRET1
+   Deleted: REMOVED_SECRET1
+   ```
+
+6. **Best Practices**
+   - Never commit decrypted `.env` files
+   - Always use SOPS for encryption/decryption
+   - Keep environment-specific overrides in `environments/[env].env`
+   - Use `base.env` for default values only
+   - Review workflow output for unexpected changes
+
+7. **Security Considerations**
+   - All secret operations happen in memory or temporary files
+   - Temporary files are immediately removed after use
+   - Decrypted values are never committed to version control
+   - Each environment's secrets are encrypted with the same age key for consistency
+   - **Note**: Temporary files are created in `/tmp` and automatically cleaned up
