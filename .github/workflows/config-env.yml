@@ -66,11 +66,30 @@ jobs:
             exit 1
           fi
 
-      - name: Generate Base Environment Variables
+      - name: Generate and Encrypt Base Environment Variables
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
         run: |
-          OUTPUT=$(python .github/workflows/scripts/generate_env.py \
+          # Generate base.env template in /tmp
+          python .github/workflows/scripts/generate_env.py \
             --config-dir config \
-            --input-yaml base.yml)
+            --input-yaml base.yml \
+            --output-dir /tmp
+          
+          # If base.env exists in repo, decrypt it to merge with template
+          if [ -f "config/base.env" ]; then
+            echo "Merging existing base.env with template..."
+            sops --decrypt config/base.env > /tmp/existing_base.env
+            # Merge existing encrypted values with new template
+            python .github/workflows/scripts/merge_secrets.py base
+            mv /tmp/base.env /tmp/final_base.env
+          else
+            echo "No existing base.env, using generated template..."
+            mv /tmp/base.env /tmp/final_base.env
+          fi
+
+          # Encrypt the final base.env
+          sops --config config/.sops.yaml encrypt /tmp/final_base.env > config/base.env
           
           echo "### Base Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
           echo "#### Warnings:" >> $GITHUB_STEP_SUMMARY
@@ -83,27 +102,63 @@ jobs:
           echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Generate Environment-Specific Variables
-        shell: bash
-        run: |       
+      - name: Generate and Encrypt Environment-Specific Variables
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
+        run: |
           for ENV in development production; do
-            echo "### Generating $ENV Environment Variables 🔧" >> $GITHUB_STEP_SUMMARY
-            OUTPUT=$(python .github/workflows/scripts/generate_env.py \
+            echo "Processing $ENV environment..."
+            
+            # 1. Generate template from base.yml for structure
+            TEMPLATE_OUTPUT=$(python .github/workflows/scripts/generate_env.py \
               --config-dir config \
               --environment $ENV \
               --input-yaml base.yml \
-              --output-dir config/environments 2>&1)
-            echo "Script output:"
-            echo "$OUTPUT"
-            echo "#### $ENV Warnings:" >> $GITHUB_STEP_SUMMARY
+              --output-dir /tmp/templates)
+            
+            # 2. Decrypt base.env (our source of default values)
+            sops --decrypt config/base.env > /tmp/base.env
+            
+            # 3. Handle existing environment file if it exists
+            if [ -f "config/environments/$ENV.env" ]; then
+              echo "Decrypting existing $ENV.env..."
+              sops --decrypt "config/environments/$ENV.env" > "/tmp/$ENV.env"
+            else
+              echo "No existing $ENV.env, creating new from template..."
+              cp "/tmp/templates/$ENV.env" "/tmp/$ENV.env"
+            fi
+            
+            # 4. Merge secrets following CRUD rules
+            echo "Merging secrets for $ENV..."
+            MERGE_OUTPUT=$(python .github/workflows/scripts/merge_secrets.py $ENV)
+            
+            # 5. Format the merged file
+            sort "/tmp/$ENV.env" > "/tmp/$ENV.env.sorted"
+            mv "/tmp/$ENV.env.sorted" "/tmp/$ENV.env"
+            
+            # 6. Encrypt the final environment file
+            echo "Encrypting final $ENV.env..."
+            mkdir -p config/environments
+            sops --config config/.sops.yaml encrypt "/tmp/$ENV.env" > "config/environments/$ENV.env"
+            
+            # 7. Clean up temporary files
+            rm -f "/tmp/$ENV.env" "/tmp/templates/$ENV.env"
+            
+            # Add to GitHub Step Summary
+            echo "### $ENV Environment Variable Results 🔧" >> $GITHUB_STEP_SUMMARY
+            echo "#### Template Generation:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY || true
+            echo "$TEMPLATE_OUTPUT" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "#### $ENV Results:" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### Merge Results:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY || true
+            echo "$MERGE_OUTPUT" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           done
+          
+          # Clean up remaining temporary files
+          rm -f /tmp/base.env /tmp/existing_base.env /tmp/final_base.env
 
       - name: Format ENV Files
         run: |
