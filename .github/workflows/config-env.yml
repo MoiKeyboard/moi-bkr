@@ -79,7 +79,6 @@ jobs:
           # If base.env exists in repo, decrypt it to merge with template
           if [ -f "config/base.env" ]; then
             echo "Merging existing base.env with template..."
-            # Explicitly specify the config file when decrypting
             sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
             # Merge existing encrypted values with new template
             python .github/workflows/scripts/merge_secrets.py base
@@ -89,20 +88,25 @@ jobs:
             mv /tmp/base.env /tmp/final_base.env
           fi
 
-          # Encrypt the final base.env with explicit config path
-          sops --config config/.sops.yaml \
-               --encrypt /tmp/final_base.env > config/base.env
+          # Encrypt the final base.env
+          sops --config config/.sops.yaml encrypt /tmp/final_base.env > config/base.env
           
           echo "### Base Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
           echo "#### Warnings:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY
+          echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY
           
           echo "#### Results:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY
+          echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "Current directory: $(pwd)"
+          echo "Contents of /tmp:"
+          ls -la /tmp/final_base.env
+          echo "Contents of config directory:"
+          ls -la config/
 
       - name: Generate and Encrypt Environment-Specific Variables
         env:
