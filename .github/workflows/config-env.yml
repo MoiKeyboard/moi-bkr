@@ -79,7 +79,8 @@ jobs:
           # If base.env exists in repo, decrypt it to merge with template
           if [ -f "config/base.env" ]; then
             echo "Merging existing base.env with template..."
-            sops --decrypt config/base.env > /tmp/existing_base.env
+            # Explicitly specify the config file when decrypting
+            sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
             # Merge existing encrypted values with new template
             python .github/workflows/scripts/merge_secrets.py base
             mv /tmp/base.env /tmp/final_base.env
@@ -88,8 +89,9 @@ jobs:
             mv /tmp/base.env /tmp/final_base.env
           fi
 
-          # Encrypt the final base.env
-          sops --config config/.sops.yaml encrypt /tmp/final_base.env > config/base.env
+          # Encrypt the final base.env with explicit config path
+          sops --config config/.sops.yaml \
+               --encrypt /tmp/final_base.env > config/base.env
           
           echo "### Base Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
           echo "#### Warnings:" >> $GITHUB_STEP_SUMMARY
