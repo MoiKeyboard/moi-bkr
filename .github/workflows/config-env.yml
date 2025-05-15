@@ -128,19 +128,27 @@ jobs:
             echo "Processing $ENV environment..."
             
             # 1. Generate template from base.yml for structure
+            echo "Generating template for $ENV..."
             TEMPLATE_OUTPUT=$(python .github/workflows/scripts/generate_env.py \
               --config-dir config \
               --environment $ENV \
               --input-yaml base.yml \
               --output-dir /tmp/templates)
             
-            # 2. Decrypt base.env (our source of default values)
-            sops --decrypt config/base.env > /tmp/base.env
+            # 2. Decrypt base.env for default values
+            echo "Decrypting base.env for defaults..."
+            if ! sops --config config/.sops.yaml --decrypt config/base.env > /tmp/base.env; then
+              echo "Warning: Could not decrypt base.env, proceeding without defaults"
+              touch /tmp/base.env
+            fi
             
             # 3. Handle existing environment file if it exists
             if [ -f "config/environments/$ENV.env" ]; then
-              echo "Decrypting existing $ENV.env..."
-              sops --decrypt "config/environments/$ENV.env" > "/tmp/$ENV.env"
+              echo "Found existing $ENV.env, attempting to decrypt..."
+              if ! sops --config config/.sops.yaml --decrypt "config/environments/$ENV.env" > "/tmp/$ENV.env" 2>/dev/null; then
+                echo "Warning: Could not decrypt existing $ENV.env, creating new one"
+                cp "/tmp/templates/$ENV.env" "/tmp/$ENV.env"
+              fi
             else
               echo "No existing $ENV.env, creating new from template..."
               cp "/tmp/templates/$ENV.env" "/tmp/$ENV.env"
@@ -151,13 +159,21 @@ jobs:
             MERGE_OUTPUT=$(python .github/workflows/scripts/merge_secrets.py $ENV)
             
             # 5. Format the merged file
+            echo "Formatting $ENV.env..."
             sort "/tmp/$ENV.env" > "/tmp/$ENV.env.sorted"
             mv "/tmp/$ENV.env.sorted" "/tmp/$ENV.env"
             
             # 6. Encrypt the final environment file
             echo "Encrypting final $ENV.env..."
             mkdir -p config/environments
-            sops --config config/.sops.yaml encrypt "/tmp/$ENV.env" > "config/environments/$ENV.env"
+            if ! sops --config config/.sops.yaml \
+                     --encrypt "/tmp/$ENV.env" > "config/environments/$ENV.env"; then
+              echo "Error: Failed to encrypt $ENV.env"
+              echo "Current directory: $(pwd)"
+              echo "SOPS config contents:"
+              cat config/.sops.yaml
+              exit 1
+            fi
             
             # 7. Clean up temporary files
             rm -f "/tmp/$ENV.env" "/tmp/templates/$ENV.env"
@@ -166,40 +182,17 @@ jobs:
             echo "### $ENV Environment Variable Results 🔧" >> $GITHUB_STEP_SUMMARY
             echo "#### Template Generation:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$TEMPLATE_OUTPUT" >> $GITHUB_STEP_SUMMARY
+            { echo "$TEMPLATE_OUTPUT" || true; } >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             
             echo "#### Merge Results:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$MERGE_OUTPUT" >> $GITHUB_STEP_SUMMARY
+            { echo "$MERGE_OUTPUT" || true; } >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           done
           
           # Clean up remaining temporary files
-          rm -f /tmp/base.env /tmp/existing_base.env /tmp/final_base.env
-
-      - name: Format ENV Files
-        run: |
-          # Function to format env file
-          format_env_file() {
-            local file=$1
-            if [ -f "$file" ]; then
-              # Sort and clean the file
-              sort "$file" > "$file.tmp"
-              tr -d '\r' < "$file.tmp" > "$file.clean"
-              mv "$file.clean" "$file"
-              rm "$file.tmp"
-              echo "Formatted $file"
-            fi
-          }
-          
-          # Format base.env
-          format_env_file "config/base.env"
-          
-          # Format environment-specific files
-          for ENV in development production; do
-            format_env_file "config/environments/$ENV.env"
-          done
+          rm -f /tmp/base.env
 
       - name: Check for configuration changes
         id: check-changes
