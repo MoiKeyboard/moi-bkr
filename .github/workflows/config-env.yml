@@ -76,10 +76,16 @@ jobs:
             --input-yaml base.yml \
             --output-dir /tmp
           
-          # If base.env exists in repo, decrypt it to merge with template
+          # If base.env exists in repo, try to decrypt it
           if [ -f "config/base.env" ]; then
-            echo "Merging existing base.env with template..."
-            sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
+            echo "Attempting to decrypt existing base.env..."
+            if sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env 2>/dev/null; then
+              echo "Successfully decrypted existing base.env"
+            else
+              echo "Failed to decrypt existing base.env, creating new one..."
+              cp /tmp/base.env /tmp/existing_base.env
+            fi
+            
             # Merge existing encrypted values with new template
             python .github/workflows/scripts/merge_secrets.py base
             mv /tmp/base.env /tmp/final_base.env
@@ -89,17 +95,23 @@ jobs:
           fi
 
           # Encrypt the final base.env
-          sops --config config/.sops.yaml encrypt /tmp/final_base.env > config/base.env
+          echo "Encrypting final base.env..."
+          sops --config config/.sops.yaml \
+               --encrypt /tmp/final_base.env > config/base.env || {
+            echo "Failed to encrypt base.env"
+            cat config/.sops.yaml
+            exit 1
+          }
           
           echo "### Base Environment Variable Generation Results 📝" >> $GITHUB_STEP_SUMMARY
           echo "#### Warnings:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$OUTPUT" | grep "Warning:" >> $GITHUB_STEP_SUMMARY || true
+          { echo "$OUTPUT" | grep "Warning:" || true; } >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           
           echo "#### Results:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$OUTPUT" | grep "Generated\|Found\|Notice:" >> $GITHUB_STEP_SUMMARY || true
+          { echo "$OUTPUT" | grep "Generated\|Found\|Notice:" || true; } >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
           echo "Current directory: $(pwd)"
