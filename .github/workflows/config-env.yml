@@ -76,7 +76,7 @@ jobs:
           python .github/workflows/scripts/generate_env.py \
             --config-dir config \
             --input-yaml base.yml \
-            --output-dir /tmp  
+            --output-dir /tmp  # This should generate /tmp/base.env
           echo "✅ Step 1 completed"
 
           echo "📝 Step 2: Checking if base.env changed..."

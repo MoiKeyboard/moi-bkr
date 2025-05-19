@@ -215,14 +215,11 @@ def generate_env(config_dir: Path, environment: str = None,
     config_dir = Path(config_dir)
     output_dir = Path(output_dir) if output_dir else None
 
-    if output_dir is None:
-        output_dir = config_dir / 'environments' if environment else config_dir
-
     yaml_file = config_dir / input_yaml
     if environment:
         env_file = output_dir / f'{environment}.env'
     else:
-        env_file = config_dir / 'base.env'
+        env_file = output_dir / 'base.env'
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
