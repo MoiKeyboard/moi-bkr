@@ -109,6 +109,9 @@ def process_env_line(line: str, required_vars: Set[str]) -> str:
 def update_env_content(existing_lines: List[str], required_vars: Set[str]) -> List[str]:
     """
     Update existing env content with required variables and comments.
+    - Never remove existing keys from base.env.
+    - Add new keys from required_vars if missing.
+    - Print a warning for any key in base.env not referenced in base.yml.
     
     Args:
         existing_lines: Existing lines from env file
@@ -121,7 +124,7 @@ def update_env_content(existing_lines: List[str], required_vars: Set[str]) -> Li
     header_lines = []
     var_lines = []
     found_first_var = False
-    
+
     for line in existing_lines:
         if not found_first_var and (not line or line.startswith('#')):
             header_lines.append(line)
@@ -129,32 +132,37 @@ def update_env_content(existing_lines: List[str], required_vars: Set[str]) -> Li
             found_first_var = True
             if line.strip():  # Keep non-empty lines
                 var_lines.append(line)
-    
+
     # Create a dictionary of all variables and their full lines
     var_dict = {}
-    
+
     # Process existing variables
     for line in var_lines:
         if not line.startswith('#'):
             var_name = line.split('=')[0].strip()
             if var_name:
                 var_dict[var_name] = line
-    
-    # Add any missing required variables
+
+    # Add any missing required variables (from base.yml)
     for var in required_vars:
         if var not in var_dict:
             var_dict[var] = f"{var}="
-    
+
+    # Print a warning for any variable in base.env not referenced in base.yml
+    for var in var_dict:
+        if var not in required_vars:
+            print(f"Warning: ${var} is not referenced in base.yml")
+
     # Generate sorted output with appropriate comments
     output_lines = header_lines
     if header_lines and header_lines[-1] != '':
         output_lines.append('')
-    
+
     # Sort and process all variables
     for var in sorted(var_dict.keys()):
         line = process_env_line(var_dict[var], required_vars)
         output_lines.append(line)
-    
+
     return output_lines
 
 def save_env_file(content: List[str], file_path: Path) -> None:

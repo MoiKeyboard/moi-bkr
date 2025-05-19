@@ -55,6 +55,12 @@ def merge_secrets(source_path, target_path, output_path, env_name):
     if not (added or updated or deleted):
         print("No changes.")
 
+    # Exit code: 0 if changes, 10 if no changes
+    if added or updated or deleted:
+        sys.exit(0)
+    else:
+        sys.exit(10)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Merge environment secrets')
     parser.add_argument('--source', required=True, 

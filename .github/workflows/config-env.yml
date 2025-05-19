@@ -70,67 +70,44 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
         run: |
-          # Step 1: Generate new template
+          # Step 1: Generate/Update base.env (add new secrets, never remove)
           python .github/workflows/scripts/generate_env.py \
             --config-dir config \
             --input-yaml base.yml \
             --output-dir /tmp
-          
-          # Step 2: Handle existing base.env
+
+          # Step 2: Check if base.env changed
           if [ -f "config/base.env" ]; then
-            echo "Attempting to decrypt existing base.env..."
-            if sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env 2>/dev/null; then
-              echo "Successfully decrypted existing base.env"
-              
-              # Step 3a: Merge if we have both files
-              python .github/workflows/scripts/merge_secrets.py \
-                --source "/tmp/base.env" \
-                --target "/tmp/existing_base.env" \
-                --output "/tmp/final_base.env" \
-                --env "base" | tee /tmp/merge_output.txt
-            else
-              echo "Failed to decrypt existing base.env, using new template..."
-              # Step 3b: Use new template if decrypt fails
-              cp /tmp/base.env /tmp/final_base.env
-              echo "Using new template file" > /tmp/merge_output.txt
-            fi
+            sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
           else
-            echo "No existing base.env, using generated template..."
-            # Step 3c: Use new template if no existing file
-            cp /tmp/base.env /tmp/final_base.env
-            echo "Created new base.env from template" > /tmp/merge_output.txt
+            touch /tmp/existing_base.env
           fi
 
-          # Step 4: Encrypt final result
-          echo "Encrypting final base.env..."
-          sops --config config/.sops.yaml \
-               --encrypt "/tmp/final_base.env" > config/base.env || {
-            echo "Failed to encrypt base.env"
-            cat config/.sops.yaml
-            exit 1
-          }
-          
-          # Step 5: Debug output
-          echo "File sizes after processing:"
-          ls -l /tmp/base.env /tmp/final_base.env config/base.env || true
+          if diff -q /tmp/base.env /tmp/existing_base.env >/dev/null; then
+            echo "No changes to base.env, skipping commit."
+            CHANGES="no"
+          else
+            echo "base.env changed, will commit."
+            sops --config config/.sops.yaml --encrypt /tmp/base.env > config/base.env
+            git add config/base.env
+            CHANGES="yes"
+          fi
 
-          # Step 6: Add to GitHub Step Summary
+          # Step 3: Add warnings to GitHub Step Summary
           {
-            echo "### Base Environment Variable Generation Results 📝" 
-            echo "#### Process Summary:"
-            echo '```'
-            cat /tmp/merge_output.txt
-            echo '```'
-            
+            echo "### Base Environment Variable Generation Results 📝"
             echo "#### File Status:"
             echo '```'
-            ls -l /tmp/base.env /tmp/final_base.env config/base.env 2>/dev/null || echo "Some files not found"
+            ls -l /tmp/base.env /tmp/existing_base.env config/base.env 2>/dev/null || echo "Some files not found"
             echo '```'
-            
-            if [ -f "/tmp/merge_output.txt" ] && grep -q "No changes" "/tmp/merge_output.txt"; then
-              echo "✅ No changes were required to base.env"
-            else
+            echo "#### Warnings:"
+            echo '```'
+            grep "Warning:" /tmp/base_env_generation.log || echo "No warnings"
+            echo '```'
+            if [ "$CHANGES" = "yes" ]; then
               echo "📝 Changes were made to base.env"
+            else
+              echo "✅ No changes were required to base.env"
             fi
           } >> $GITHUB_STEP_SUMMARY
 
@@ -140,8 +117,8 @@ jobs:
         run: |
           for ENV in development production; do
             echo "Processing $ENV environment..."
-            
-            # Step 1: Generate template from base.yml
+
+            # Step 1: Generate template from base.yml (for structure, not for commit)
             echo "Generating template for $ENV..."
             python .github/workflows/scripts/generate_env.py \
               --config-dir config \
@@ -149,77 +126,67 @@ jobs:
               --input-yaml base.yml \
               --output-dir /tmp/templates \
               | tee /tmp/${ENV}_template_output.txt
-            
-            # Step 2: Handle existing environment file
-            if [ -f "config/environments/$ENV.env" ]; then
-              echo "Found existing $ENV.env, attempting to decrypt..."
-              if sops --config config/.sops.yaml --decrypt "config/environments/$ENV.env" > "/tmp/existing_${ENV}.env"; then
-                echo "Successfully decrypted $ENV.env"
-                
-                # Step 3a: Merge if we have both files
-                python .github/workflows/scripts/merge_secrets.py \
-                  --source "/tmp/templates/${ENV}.env" \
-                  --target "/tmp/existing_${ENV}.env" \
-                  --output "/tmp/final_${ENV}.env" \
-                  --env "$ENV" | tee /tmp/${ENV}_merge_output.txt
-              else
-                echo "Failed to decrypt $ENV.env, using new template..."
-                # Step 3b: Use new template if decrypt fails
-                cp "/tmp/templates/${ENV}.env" "/tmp/final_${ENV}.env"
-                echo "Using new template file for $ENV" > /tmp/${ENV}_merge_output.txt
-              fi
+
+            # Step 2: Decrypt base.env and environment file
+            sops --config config/.sops.yaml --decrypt config/base.env > /tmp/base.env
+            if [ -f "config/environments/${ENV}.env" ]; then
+              sops --config config/.sops.yaml --decrypt "config/environments/${ENV}.env" > "/tmp/${ENV}.env"
             else
-              echo "No existing $ENV.env, using generated template..."
-              # Step 3c: Use new template if no existing file
-              cp "/tmp/templates/${ENV}.env" "/tmp/final_${ENV}.env"
-              echo "Created new $ENV.env from template" > /tmp/${ENV}_merge_output.txt
+              cp /tmp/base.env "/tmp/${ENV}.env"
             fi
-            
-            # Step 4: Format the merged file (maintain sorting)
-            sort "/tmp/final_${ENV}.env" > "/tmp/final_${ENV}.env.sorted"
-            mv "/tmp/final_${ENV}.env.sorted" "/tmp/final_${ENV}.env"
-            
-            # Step 5: Encrypt the final environment file
-            echo "Encrypting final $ENV.env..."
-            mkdir -p config/environments
-            if ! sops --config config/.sops.yaml \
-                     --encrypt "/tmp/final_${ENV}.env" > "config/environments/$ENV.env"; then
-              echo "Failed to encrypt $ENV.env"
-              cat config/.sops.yaml
-              exit 1
+
+            # Step 3: Merge and check for changes
+            set +e
+            python .github/workflows/scripts/merge_secrets.py \
+              --source /tmp/base.env \
+              --target /tmp/${ENV}.env \
+              --output /tmp/merged_${ENV}.env \
+              --env $ENV | tee /tmp/${ENV}_merge_output.txt
+            status=$?
+            set -e
+
+            # Step 4: Encrypt and commit only if there are changes
+            if [ "$status" -eq 0 ]; then
+              echo "Secrets changed in $ENV.env, will commit."
+              sops --config config/.sops.yaml --encrypt /tmp/merged_${ENV}.env > config/environments/${ENV}.env
+              git add config/environments/${ENV}.env
+              CHANGES_MADE="yes"
+            else
+              echo "No changes to secrets in $ENV.env, skipping commit."
+              CHANGES_MADE="no"
             fi
-            
-            # Step 6: Add to GitHub Step Summary
+
+            # Step 5: Add to GitHub Step Summary
             {
               echo "### $ENV Environment Variable Results 🔧"
               echo "#### Template Generation:"
               echo '```'
               cat /tmp/${ENV}_template_output.txt
               echo '```'
-              
+
               echo "#### Merge Results:"
               echo '```'
               cat /tmp/${ENV}_merge_output.txt
               echo '```'
-              
+
               echo "#### File Status:"
               echo '```'
-              ls -l "/tmp/templates/${ENV}.env" "/tmp/final_${ENV}.env" "config/environments/$ENV.env" 2>/dev/null || echo "Some files not found"
+              ls -l "/tmp/templates/${ENV}.env" "/tmp/merged_${ENV}.env" "config/environments/${ENV}.env" 2>/dev/null || echo "Some files not found"
               echo '```'
-              
-              if [ -f "/tmp/${ENV}_merge_output.txt" ] && grep -q "No changes" "/tmp/${ENV}_merge_output.txt"; then
-                echo "✅ No changes were required to $ENV.env"
-              else
+
+              if [ "$CHANGES_MADE" = "yes" ]; then
                 echo "📝 Changes were made to $ENV.env"
+              else
+                echo "✅ No changes were required to $ENV.env"
               fi
-              
+
               echo
             } >> $GITHUB_STEP_SUMMARY
-            
-            # Step 7: Clean up temporary files for this environment
-            rm -f "/tmp/existing_${ENV}.env" "/tmp/templates/${ENV}.env"
+
+            # Step 6: Clean up temporary files for this environment
+            rm -f "/tmp/${ENV}.env" "/tmp/merged_${ENV}.env" "/tmp/${ENV}_merge_output.txt" "/tmp/${ENV}_template_output.txt"
           done
-          
+
           # Final cleanup
           rm -rf /tmp/templates
 
