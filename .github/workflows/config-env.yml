@@ -93,6 +93,9 @@ jobs:
           echo "📝 Step 2: Checking if base.env changed..."
           if [ -f "config/base.env" ]; then
             echo "Found existing base.env file"
+            # Convert Windows line endings to Unix before decrypting
+            tr -d '\r' < config/base.env > config/base.env.unix
+            mv config/base.env.unix config/base.env
             # Check if file is a valid SOPS encrypted file
             if sops --config config/.sops.yaml --decrypt config/base.env > $TEMP_DIR/existing_base.env; then
               echo "Decrypted existing base.env"
@@ -105,24 +108,27 @@ jobs:
             touch $TEMP_DIR/existing_base.env
           fi
 
-          echo "📝 Comparing files..."
-          if [ ! -f "$TEMP_DIR/base.env" ]; then
-            echo "Error: Generated base.env not found in temp directory"
-            exit 1
-          fi
+          echo "📝 Step 3: Merging existing values with new template..."
+          python .github/workflows/scripts/merge_secrets.py \
+            --source $TEMP_DIR/base.env \
+            --target $TEMP_DIR/existing_base.env \
+            --output $TEMP_DIR/merged_base.env \
+            --env base
 
-          if diff -q $TEMP_DIR/base.env $TEMP_DIR/existing_base.env >/dev/null; then
+          # Check the exit code from merge_secrets.py
+          MERGE_STATUS=$?
+          if [ $MERGE_STATUS -eq 10 ]; then
             echo "No changes to base.env, skipping commit."
             CHANGES="no"
           else
             echo "base.env changed, will commit."
             echo "Encrypting new base.env..."
-            sops --config config/.sops.yaml --encrypt $TEMP_DIR/base.env > config/base.env
+            sops --config config/.sops.yaml --encrypt $TEMP_DIR/merged_base.env > config/base.env
             git add config/base.env
             CHANGES="yes"
           fi
 
-          echo "📝 Step 3: Updating GitHub Step Summary..."
+          echo "📝 Step 4: Updating GitHub Step Summary..."
           {
             echo "### Base Environment Variable Generation Results 📝"
             echo "#### File Status:"
