@@ -146,14 +146,14 @@ jobs:
           DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
           echo "Default branch is: $DEFAULT_BRANCH"
           
-          # Pull latest changes
-          git pull origin $DEFAULT_BRANCH --rebase
-          
-          # Add and commit changes
+          # Commit changes
           git add config/base.env
           git commit -m "chore: update and encrypt base.env template file"
           
-          # Push to the default branch
+          # Pull remote default branch with rebase
+          git pull origin $DEFAULT_BRANCH --rebase
+          
+          # Finally push
           git push origin HEAD:$DEFAULT_BRANCH
 
       # - name: Generate and Encrypt Environment-Specific Variables
