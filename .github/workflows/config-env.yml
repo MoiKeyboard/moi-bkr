@@ -127,6 +127,24 @@ jobs:
           
           echo "✅ Base Environment Variables Generation completed"
 
+      - name: Check for configuration changes
+        id: check-changes
+        run: |
+          if [[ $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add config/base.env
+          git commit -m "chore: update and encrypt base.env template file"
+          git push origin main
+
       # - name: Generate and Encrypt Environment-Specific Variables
       #   env:
       #     SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
@@ -206,23 +224,23 @@ jobs:
       #     # Final cleanup
       #     rm -rf /tmp/templates
 
-      - name: Check for configuration changes
-        id: check-changes
-        run: |
-          if [[ $(git status --porcelain) ]]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
+      # - name: Check for configuration changes 2
+      #   id: check-changes2
+      #   run: |
+      #     if [[ $(git status --porcelain) ]]; then
+      #       echo "has_changes=true" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "has_changes=false" >> $GITHUB_OUTPUT
+      #     fi
 
-      - name: Commit and push changes
-        if: steps.check-changes.outputs.has_changes == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add config/base.env config/environments/*.env
-          git commit -m "chore: update and encrypt environment files"
-          git push origin main
+      # - name: Commit and push changes 2
+      #   if: steps.check-changes2.outputs.has_changes == 'true'
+      #   run: |
+      #     git config --local user.email "github-actions[bot]@users.noreply.github.com"
+      #     git config --local user.name "github-actions[bot]"
+      #     git add config/base.env
+      #     git commit -m "chore: update and encrypt environment file(s)"
+      #     git push origin main
 
       - name: Report Status
         if: always()
