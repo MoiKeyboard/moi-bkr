@@ -72,20 +72,19 @@ jobs:
         run: |
           echo "🚀 Starting Base Environment Variables Generation..."
           
-          echo "📝 Step 1: Generating/Updating base.env..."
+          echo "📝 Step 1: Generating new base.env to temp location..."
           python .github/workflows/scripts/generate_env.py \
             --config-dir config \
             --input-yaml base.yml \
-            --output-dir /tmp
+            --output-dir /tmp  
           echo "✅ Step 1 completed"
 
           echo "📝 Step 2: Checking if base.env changed..."
           if [ -f "config/base.env" ]; then
             echo "Found existing base.env file"
             # Check if file is a valid SOPS encrypted file
-            if sops --config config/.sops.yaml --decrypt config/base.env > /dev/null 2>&1; then
-              echo "Decrypting existing base.env..."
-              sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
+            if sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env; then
+              echo "Decrypted existing base.env"
             else
               echo "base.env is not a valid SOPS encrypted file, creating empty comparison file"
               touch /tmp/existing_base.env
@@ -96,6 +95,11 @@ jobs:
           fi
 
           echo "📝 Comparing files..."
+          if [ ! -f "/tmp/base.env" ]; then
+            echo "Error: Generated base.env not found in temp directory"
+            exit 1
+          fi
+
           if diff -q /tmp/base.env /tmp/existing_base.env >/dev/null; then
             echo "No changes to base.env, skipping commit."
             CHANGES="no"
@@ -112,11 +116,7 @@ jobs:
             echo "### Base Environment Variable Generation Results 📝"
             echo "#### File Status:"
             echo '```'
-            ls -l /tmp/base.env /tmp/existing_base.env config/base.env 2>/dev/null || echo "Some files not found"
-            echo '```'
-            echo "#### Warnings:"
-            echo '```'
-            grep "Warning:" /tmp/base_env_generation.log || echo "No warnings"
+            ls -l config/base.env /tmp/existing_base.env 2>/dev/null || echo "Some files not found"
             echo '```'
             if [ "$CHANGES" = "yes" ]; then
               echo "📝 Changes were made to base.env"
