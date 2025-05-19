@@ -109,11 +109,13 @@ jobs:
           fi
 
           echo "📝 Step 3: Merging existing values with new template..."
+          # Run merge_secrets.py and capture output to file
           python .github/workflows/scripts/merge_secrets.py \
             --source $TEMP_DIR/base.env \
             --target $TEMP_DIR/existing_base.env \
             --output $TEMP_DIR/merged_base.env \
-            --env base
+            --env base \
+            --preserve-existing | tee $TEMP_DIR/merge_output.txt
 
           # Check the exit code from merge_secrets.py
           MERGE_STATUS=$?
@@ -123,6 +125,8 @@ jobs:
           else
             echo "base.env changed, will commit."
             echo "Encrypting new base.env..."
+            # Unset PGP environment variable to force age encryption
+            unset SOPS_PGP_FP
             sops --config config/.sops.yaml --encrypt $TEMP_DIR/merged_base.env > config/base.env
             git add config/base.env
             CHANGES="yes"
@@ -135,6 +139,12 @@ jobs:
             echo '```'
             ls -l config/base.env $TEMP_DIR/existing_base.env 2>/dev/null || echo "Some files not found"
             echo '```'
+            
+            echo "#### Changes:"
+            echo '```'
+            cat $TEMP_DIR/merge_output.txt
+            echo '```'
+            
             if [ "$CHANGES" = "yes" ]; then
               echo "📝 Changes were made to base.env"
             else

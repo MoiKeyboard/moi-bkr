@@ -3,7 +3,7 @@ import sys
 import argparse
 from dotenv import dotenv_values
 
-def merge_secrets(source_path, target_path, output_path, env_name):
+def merge_secrets(source_path, target_path, output_path, env_name, preserve_existing=False):
     """
     Merge environment variables from source into target, writing result to output.
     
@@ -12,6 +12,7 @@ def merge_secrets(source_path, target_path, output_path, env_name):
         target_path: Path to target .env file (existing)
         output_path: Path where to write merged result
         env_name: Environment name for logging
+        preserve_existing: If True, keep all existing keys even if not in source
     """
     # Load both files
     source_env = dotenv_values(source_path)
@@ -22,22 +23,29 @@ def merge_secrets(source_path, target_path, output_path, env_name):
     updated = []
     deleted = []
 
-    # Merge logic remains the same but with clearer variable names
-    for key, value in source_env.items():
-        if key in target_env:
-            if target_env[key] == source_env[key]:
+    if preserve_existing:
+        # When preserving existing, only add new keys from source
+        for key, value in source_env.items():
+            if key not in target_env:
                 target_env[key] = value
-                updated.append(key)
-            # If different, keep target value (override)
-        else:
-            target_env[key] = value
-            added.append(key)
+                added.append(key)
+    else:
+        # Original merge logic for when not preserving existing
+        for key, value in source_env.items():
+            if key in target_env:
+                if target_env[key] == source_env[key]:
+                    target_env[key] = value
+                    updated.append(key)
+                # If different, keep target value (override)
+            else:
+                target_env[key] = value
+                added.append(key)
 
-    # Remove keys not in source
-    keys_to_remove = [k for k in target_env if k not in source_env]
-    for k in keys_to_remove:
-        deleted.append(k)
-        del target_env[k]
+        # Remove keys not in source
+        keys_to_remove = [k for k in target_env if k not in source_env]
+        for k in keys_to_remove:
+            deleted.append(k)
+            del target_env[k]
 
     # Write to output file (never overwrite inputs)
     with open(output_path, "w") as f:
@@ -71,6 +79,8 @@ if __name__ == "__main__":
                        help='Path to write merged result')
     parser.add_argument('--env', required=True, 
                        help='Environment name for logging')
+    parser.add_argument('--preserve-existing', action='store_true',
+                       help='Keep all existing keys even if not in source')
     
     args = parser.parse_args()
-    merge_secrets(args.source, args.target, args.output, args.env)
+    merge_secrets(args.source, args.target, args.output, args.env, args.preserve_existing)
