@@ -70,30 +70,44 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
         run: |
-          # Step 1: Generate/Update base.env (add new secrets, never remove)
+          echo "🚀 Starting Base Environment Variables Generation..."
+          
+          echo "📝 Step 1: Generating/Updating base.env..."
           python .github/workflows/scripts/generate_env.py \
             --config-dir config \
             --input-yaml base.yml \
             --output-dir /tmp
+          echo "✅ Step 1 completed"
 
-          # Step 2: Check if base.env changed
+          echo "📝 Step 2: Checking if base.env changed..."
           if [ -f "config/base.env" ]; then
-            sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
+            echo "Found existing base.env file"
+            # Check if file is a valid SOPS encrypted file
+            if sops --config config/.sops.yaml --decrypt config/base.env > /dev/null 2>&1; then
+              echo "Decrypting existing base.env..."
+              sops --config config/.sops.yaml --decrypt config/base.env > /tmp/existing_base.env
+            else
+              echo "base.env is not a valid SOPS encrypted file, creating empty comparison file"
+              touch /tmp/existing_base.env
+            fi
           else
+            echo "No existing base.env found, creating empty comparison file"
             touch /tmp/existing_base.env
           fi
 
+          echo "📝 Comparing files..."
           if diff -q /tmp/base.env /tmp/existing_base.env >/dev/null; then
             echo "No changes to base.env, skipping commit."
             CHANGES="no"
           else
             echo "base.env changed, will commit."
+            echo "Encrypting new base.env..."
             sops --config config/.sops.yaml --encrypt /tmp/base.env > config/base.env
             git add config/base.env
             CHANGES="yes"
           fi
 
-          # Step 3: Add warnings to GitHub Step Summary
+          echo "📝 Step 3: Updating GitHub Step Summary..."
           {
             echo "### Base Environment Variable Generation Results 📝"
             echo "#### File Status:"
@@ -110,6 +124,8 @@ jobs:
               echo "✅ No changes were required to base.env"
             fi
           } >> $GITHUB_STEP_SUMMARY
+          
+          echo "✅ Base Environment Variables Generation completed"
 
       - name: Generate and Encrypt Environment-Specific Variables
         env:
