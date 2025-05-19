@@ -141,12 +141,17 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add config/base.env
-          git commit -m "chore: update and encrypt base.env template file"
           
           # Get the default branch name
           DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
           echo "Default branch is: $DEFAULT_BRANCH"
+          
+          # Pull latest changes
+          git pull origin $DEFAULT_BRANCH --rebase
+          
+          # Add and commit changes
+          git add config/base.env
+          git commit -m "chore: update and encrypt base.env template file"
           
           # Push to the default branch
           git push origin HEAD:$DEFAULT_BRANCH
