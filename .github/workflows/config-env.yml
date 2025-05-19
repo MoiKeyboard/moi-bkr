@@ -143,7 +143,13 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add config/base.env
           git commit -m "chore: update and encrypt base.env template file"
-          git push origin main
+          
+          # Get the default branch name
+          DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+          echo "Default branch is: $DEFAULT_BRANCH"
+          
+          # Push to the default branch
+          git push origin HEAD:$DEFAULT_BRANCH
 
       # - name: Generate and Encrypt Environment-Specific Variables
       #   env:
