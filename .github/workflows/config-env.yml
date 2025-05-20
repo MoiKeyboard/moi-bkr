@@ -126,7 +126,6 @@ jobs:
             echo "No changes to base.env, skipping commit."
             echo "changes=no" >> $GITHUB_OUTPUT
             # Don't encrypt or add to git if no changes
-            exit 0
           else
             echo "base.env changed, will commit."
             echo "unset PGP environment variable to force age encryption"
@@ -158,26 +157,6 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
           
           echo "✅ Base Environment Variables Generation completed"
-
-      - name: Commit and push changes
-        if: steps.generate-base-env.outputs.changes == 'yes'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          # Get the default branch name
-          DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
-          echo "Default branch is: $DEFAULT_BRANCH"
-          
-          # Commit changes
-          git add config/base.env
-          git commit -m "chore: update and encrypt base.env template file"
-          
-          # Pull remote default branch with rebase
-          git pull origin $DEFAULT_BRANCH --rebase
-          
-          # Finally push
-          git push origin HEAD:$DEFAULT_BRANCH
 
       # - name: Generate and Encrypt Environment-Specific Variables
       #   env:
@@ -258,23 +237,25 @@ jobs:
       #     # Final cleanup
       #     rm -rf /tmp/templates
 
-      # - name: Check for configuration changes 2
-      #   id: check-changes2
-      #   run: |
-      #     if [[ $(git status --porcelain) ]]; then
-      #       echo "has_changes=true" >> $GITHUB_OUTPUT
-      #     else
-      #       echo "has_changes=false" >> $GITHUB_OUTPUT
-      #     fi
-
-      # - name: Commit and push changes 2
-      #   if: steps.check-changes2.outputs.has_changes == 'true'
-      #   run: |
-      #     git config --local user.email "github-actions[bot]@users.noreply.github.com"
-      #     git config --local user.name "github-actions[bot]"
-      #     git add config/base.env
-      #     git commit -m "chore: update and encrypt environment file(s)"
-      #     git push origin main
+      - name: Commit and push changes
+        if: steps.generate-base-env.outputs.changes == 'yes'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Get the default branch name
+          DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+          echo "Default branch is: $DEFAULT_BRANCH"
+          
+          # Commit changes
+          git add config/base.env
+          git commit -m "chore: update and encrypt base.env template file"
+          
+          # Pull remote default branch with rebase
+          git pull origin $DEFAULT_BRANCH --rebase
+          
+          # Finally push
+          git push origin HEAD:$DEFAULT_BRANCH
 
       - name: Report Status
         if: always()
