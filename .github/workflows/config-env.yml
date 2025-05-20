@@ -67,6 +67,7 @@ jobs:
           fi
 
       - name: Generate and Encrypt Base Environment Variables
+        id: generate-base-env
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_FILE }}
         run: |
@@ -117,19 +118,23 @@ jobs:
             --env base \
             --preserve-existing | tee $TEMP_DIR/merge_output.txt
 
-          # Check the exit code from merge_secrets.py
-          MERGE_STATUS=$?
+          # Explicitly capture the exit code
+          MERGE_STATUS=${PIPESTATUS[0]}
+          echo "Merge script exit code: $MERGE_STATUS"
+
           if [ $MERGE_STATUS -eq 10 ]; then
             echo "No changes to base.env, skipping commit."
-            CHANGES="no"
+            echo "changes=no" >> $GITHUB_OUTPUT
+            # Don't encrypt or add to git if no changes
+            exit 0
           else
             echo "base.env changed, will commit."
-            echo "Encrypting new base.env..."
-            # Unset PGP environment variable to force age encryption
+            echo "unset PGP environment variable to force age encryption"
             unset SOPS_PGP_FP
+            echo "Encrypting new base.env..."
             sops --config config/.sops.yaml --encrypt $TEMP_DIR/merged_base.env > config/base.env
             git add config/base.env
-            CHANGES="yes"
+            echo "changes=yes" >> $GITHUB_OUTPUT
           fi
 
           echo "📝 Step 4: Updating GitHub Step Summary..."
@@ -145,7 +150,7 @@ jobs:
             cat $TEMP_DIR/merge_output.txt
             echo '```'
             
-            if [ "$CHANGES" = "yes" ]; then
+            if [ "$(cat $GITHUB_OUTPUT | grep '^changes=' | cut -d'=' -f2)" = "yes" ]; then
               echo "📝 Changes were made to base.env"
             else
               echo "✅ No changes were required to base.env"
@@ -154,17 +159,8 @@ jobs:
           
           echo "✅ Base Environment Variables Generation completed"
 
-      - name: Check for configuration changes
-        id: check-changes
-        run: |
-          if [[ $(git status --porcelain) ]]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Commit and push changes
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.generate-base-env.outputs.changes == 'yes'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
