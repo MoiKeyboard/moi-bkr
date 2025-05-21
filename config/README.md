@@ -18,6 +18,7 @@
     - [Working with SOPS](#working-with-sops)
     - [Troubleshooting](#troubleshooting)
     - [Handling Encrypted Environment Files in Workflows](#handling-encrypted-environment-files-in-workflows)
+    - [Environment File Merging Behavior](#environment-file-merging-behavior)
 
 ## Objectives
 
@@ -107,7 +108,10 @@ config/
       ```
 2. `environments/[env].env`:
     - Stores secrets for each environment
-    - Encrypted using [Secret Management with Secrets OPerationS (SOPS)](#secret-management-with-secrets-operations-sops)
+    - Encrypted using SOPS with age encryption
+    - Inherits values from `base.env`
+    - Can override values from `base.env`
+    - Automatically updated when `base.env` changes
 
 ## Key Workflows
 1. `config-sync`
@@ -128,6 +132,8 @@ config/
     - Handles encryption/decryption with SOPS
     - Formats and sorts all `.env` files
     - Provides verbose output for changes
+    - Preserves existing values in `base.env`
+    - Ensures environment files stay in sync with `base.env`
     - **Note**: Depends on successful completion of `config-sync`
 
 ## Developer Usage Examples
@@ -147,16 +153,20 @@ The configuration system includes several validation steps:
 1. **YAML Validation**
    - All YAML files are linted using `yamllint`
    - Files are formatted using `prettier`
+   - Ensures consistent formatting and structure
+   - Catches common YAML syntax errors
 
 2. **Secret Validation**
    - SOPS key validation in CI/CD
    - Environment variable reference validation
    - Required secrets presence check
+   - Validates encryption/decryption process
 
 3. **Schema Validation** (TODO)
    - JSON Schema validation rules
    - Type checking for configuration values
    - Required fields validation
+   - Secret presence verification
 
 ## Secret Management with Secrets OPerationS (SOPS)
 SOPS encrypts individual values within structured files (YAML, JSON, ENV, etc.), enabling secure version control of secrets. Key benefits:
@@ -315,11 +325,14 @@ The system manages encrypted environment files through a layered approach:
    - Contains default secret values for all environments
    - Encrypted using SOPS with age encryption
    - Serves as the template for environment-specific secrets
+   - Uses `--preserve-existing` flag to maintain manual additions
 
 2. **Environment-Specific Files (`environments/[env].env`)**
    - Contains environment-specific secret overrides
    - Also encrypted using SOPS with age encryption
-   - Can override or extend secrets from `base.env`
+   - Strictly follows source template
+   - Removes keys not present in source
+   - Ensures consistency with base template
 
 3. **Workflow Process**
    The following rules are applied when `base.env` is modified:
@@ -327,14 +340,17 @@ The system manages encrypted environment files through a layered approach:
    a. **Updates to Existing Secrets**
       - If a secret in `base.env` is modified and matches the value in `environments/[env].env`, the environment file is updated
       - If values differ, the environment-specific value is preserved (override)
+      - When `--preserve-existing` is used (for base.env), all existing keys are kept
 
    b. **New Secrets**
-      - When new secrets are added to `base.env`, they are automatically added to environment files with the same value
+      - When new secrets are added to `base.env`, they are automatically added to environment files
+      - For new environment files, all variables from `base.env` are marked as "added"
       - Environment files can later override these values if needed
 
    c. **Deleted Secrets**
       - If a secret is removed from `base.env`, it is also removed from environment files
       - This ensures consistency across environments
+      - Exception: When `--preserve-existing` is used, deleted secrets are kept
 
 4. **Workflow Steps**
    ```bash
@@ -343,16 +359,21 @@ The system manages encrypted environment files through a layered approach:
    sops --config config/.sops.yaml decrypt -i config/environments/[env].env > /tmp/[env].env
 
    # 2. Merge and update environment file
-   python merge_secrets.py [env]
+   python merge_secrets.py \
+     --source /tmp/base.env \
+     --target /tmp/[env].env \
+     --output /tmp/merged_[env].env \
+     --env [env]
 
    # 3. Re-encrypt environment file
-   sops --config config/.sops.yaml encrypt -i /tmp/[env].env > config/environments/[env].env
+   sops --config config/.sops.yaml encrypt -i /tmp/merged_[env].env > config/environments/[env].env
    ```
 
 5. **Verbose Output**
    The workflow provides detailed feedback about changes:
    ```
    Processing [env] environment:
+   Creating new environment file  # For new environments
    Added: NEW_SECRET1, NEW_SECRET2
    Updated: MODIFIED_SECRET1
    Deleted: REMOVED_SECRET1
@@ -364,6 +385,8 @@ The system manages encrypted environment files through a layered approach:
    - Keep environment-specific overrides in `environments/[env].env`
    - Use `base.env` for default values only
    - Review workflow output for unexpected changes
+   - Use `--preserve-existing` flag only for `base.env` to maintain manual additions
+   - For environment-specific files, let the merge script handle all changes
 
 7. **Security Considerations**
    - All secret operations happen in memory or temporary files
@@ -371,3 +394,20 @@ The system manages encrypted environment files through a layered approach:
    - Decrypted values are never committed to version control
    - Each environment's secrets are encrypted with the same age key for consistency
    - **Note**: Temporary files are created in `/tmp` and automatically cleaned up
+
+### Environment File Merging Behavior
+
+The system uses different merging strategies for different files:
+
+1. **Base Environment (`base.env`)**
+   - Uses `--preserve-existing` flag
+   - Keeps all existing keys even if removed from source
+   - Useful for maintaining manual additions to base template
+   - Example use case: Adding development-only secrets to base template
+
+2. **Environment-Specific Files (`environments/[env].env`)**
+   - Does not use `--preserve-existing` flag
+   - Strictly follows source template
+   - Removes keys not present in source
+   - Ensures consistency with base template
+   - Example use case: Production environment with strict security requirements
