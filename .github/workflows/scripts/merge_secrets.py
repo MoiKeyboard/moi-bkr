@@ -2,6 +2,8 @@ import os
 import sys
 import argparse
 from dotenv import dotenv_values
+from typing import List, Set
+from pathlib import Path
 
 def merge_secrets(source_path, target_path, output_path, env_name, preserve_existing=False):
     """
@@ -23,20 +25,26 @@ def merge_secrets(source_path, target_path, output_path, env_name, preserve_exis
     updated = []
     deleted = []
 
+    # Check if target file is empty (new environment)
+    is_new_env = len(target_env) == 0
+
     if preserve_existing:
-        # When preserving existing, only add new keys from source
+        # When preserving existing, check for new keys from source
         for key, value in source_env.items():
             if key not in target_env:
                 target_env[key] = value
                 added.append(key)
+            elif target_env[key] != value:
+                # If value is different, update it
+                target_env[key] = value
+                updated.append(key)
     else:
         # Original merge logic for when not preserving existing
         for key, value in source_env.items():
             if key in target_env:
-                if target_env[key] == source_env[key]:
+                if target_env[key] != value:
                     target_env[key] = value
                     updated.append(key)
-                # If different, keep target value (override)
             else:
                 target_env[key] = value
                 added.append(key)
@@ -54,17 +62,20 @@ def merge_secrets(source_path, target_path, output_path, env_name, preserve_exis
 
     # Status output
     print(f"Processing {env_name} environment:")
+    if is_new_env:
+        print("Creating new environment file")
+        added = list(source_env.keys())  # All keys are new for a new environment
     if added:
         print(f"Added: {', '.join(sorted(added))}")
     if updated:
         print(f"Updated: {', '.join(sorted(updated))}")
     if deleted:
         print(f"Deleted: {', '.join(sorted(deleted))}")
-    if not (added or updated or deleted):
+    if not (added or updated or deleted) and not is_new_env:
         print("No changes.")
 
-    # Exit code: 0 if changes, 10 if no changes
-    if added or updated or deleted:
+    # Exit code: 0 if changes or new environment, 10 if no changes
+    if added or updated or deleted or is_new_env:
         sys.exit(0)
     else:
         sys.exit(10)
