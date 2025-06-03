@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyyaml yamllint yq dotenv
           # Install SOPS
-          curl -L https://github.com/mozilla/sops/releases/download/v3.7.3/sops-v3.7.3.linux.amd64 -o sops
+          curl -L https://github.com/mozilla/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64 -o sops
           chmod +x sops
           sudo mv sops /usr/local/bin/
 
