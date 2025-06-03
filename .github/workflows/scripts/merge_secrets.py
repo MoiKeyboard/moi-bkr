@@ -35,9 +35,10 @@ def merge_secrets(source_path, target_path, output_path, env_name, preserve_exis
                 target_env[key] = value
                 added.append(key)
             elif target_env[key] != value:
-                # If value is different, update it
-                target_env[key] = value
-                updated.append(key)
+                # If value is different, update it, BUT only if the source value is not empty
+                if value != "":
+                    target_env[key] = value
+                    updated.append(key)
     else:
         # Original merge logic for when not preserving existing
         for key, value in source_env.items():
