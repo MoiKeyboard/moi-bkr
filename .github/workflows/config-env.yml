@@ -172,10 +172,11 @@ jobs:
             export SOPS_AGE_KEY=$(grep -v "^#" "$SOPS_AGE_KEY_FILE" | tr -d '\n\r')
           fi
 
-          echo "📝 Step 1: Setting up temporary directory..."
+          echo "📝 Step 1: Setting up temporary directory and initialize variables..."
           # Create a temp directory in the workspace
           TEMP_DIR=".temp"
           mkdir -p "$TEMP_DIR"
+          any_env_changed="no"
           echo "✅ Step 1 completed"
 
           for ENV in development production; do
@@ -232,6 +233,7 @@ jobs:
             if [ $MERGE_STATUS -eq 10 ]; then
               echo "No changes to ${ENV}.env, skipping commit."
               echo "changes_${ENV}=no" >> $GITHUB_OUTPUT
+              # Don't encrypt or add to git if no changes
             else
               echo "${ENV}.env changed, will commit."
               echo "unset PGP environment variable to force age encryption"
@@ -240,6 +242,7 @@ jobs:
               sops --config config/.sops.yaml --encrypt "$TEMP_DIR/merged_${ENV}.env" > "config/environments/${ENV}.env"
               git add "config/environments/${ENV}.env"
               echo "changes_${ENV}=yes" >> $GITHUB_OUTPUT
+              any_env_changed="yes"
             fi
 
             echo "📝 Step 4: Updating GitHub Step Summary..."
@@ -265,11 +268,13 @@ jobs:
             echo "✅ $ENV Environment Variables Generation completed"
           done
           
-          echo "📝 Step 5: Cleaning up temporary files"
+          echo "📝 Step 5: Cleaning up temporary files and setting output"
           rm -rf $TEMP_DIR
+          echo "env_specific_changes=$any_env_changed" >> $GITHUB_OUTPUT
+
 
       - name: Commit and push changes
-        if: steps.generate-base-env.outputs.changes == 'yes'
+        if: steps.generate-base-env.outputs.changes == 'yes' || steps.generate-env-specific.outputs.env_specific_changes == 'yes'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -279,8 +284,15 @@ jobs:
           echo "Default branch is: $DEFAULT_BRANCH"
           
           # Commit changes
-          git add config/base.env
-          git commit -m "chore: update and encrypt base.env template file"
+          if [ "${{ steps.generate-base-env.outputs.changes }}" == "yes" ]; then
+            git add config/base.env
+            git commit -m "chore: update and encrypt base.env template file"
+          fi
+
+          if [ "${{ steps.generate-env-specific.outputs.env_specific_changes }}" == "yes" ]; then
+            git add config/environments/*.env
+            git commit -m "chore: update and encrypt environments .env file"
+          fi
           
           # Pull remote default branch with rebase
           git pull origin $DEFAULT_BRANCH --rebase
