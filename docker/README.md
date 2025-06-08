@@ -55,8 +55,6 @@ docker/
 │ └── Dockerfile
 ├── telegram-bot/ # Telegram bot service
 │ └── Dockerfile
-├── traefik/ # Reverse proxy service
-│ └── Dockerfile
 ├── README.md # This file
 └── docker-compose.yml # Root compose file
 ```

@@ -1,8 +1,8 @@
 services:
   market-scanner:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: docker/market-scanner/Dockerfile
     container_name: market-scanner
     restart: unless-stopped
     labels:
@@ -33,7 +33,8 @@ services:
       - "${PORT:-8000}:${PORT:-8000}"
     volumes:
       - ./.data:/app/.data
-      - ./config.yaml:/app/config.yaml
+      - ../../config/environments/${ENV:-development}.yml:/app/config.yml:ro
+      - ../../config/environments/${ENV:-development}.env:/app/.env:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -44,8 +45,8 @@ services:
 
   telegram-bot:
     build:
-      context: .
-      dockerfile: Dockerfile.bot
+      context: ../
+      dockerfile: docker/telegram-bot/Dockerfile
     container_name: telegram-bot
     restart: unless-stopped
     labels:
@@ -101,9 +102,9 @@ services:
       - "443:443" # HTTPS
       - "8080:8080" # Dashboard
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro # Docker socket
-      - ./certs:/certs:ro # Certificates
-      # - ./traefik.yml:/etc/traefik/traefik.yml:ro  # traefik config file
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../certs/wildcard.crt:/certs/wildcard.crt:ro
+      - ../certs/wildcard.key:/certs/wildcard.key:ro
     networks:
       - trading-network
     # Dynamic Configuration
@@ -115,8 +116,8 @@ services:
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.entrypoints=web,websecure"
       - "traefik.http.routers.traefik.tls=true"
-      # - "traefik.http.routers.traefik.middlewares=strip-traefik-prefix@docker"
       # Middleware configuration
+      - "traefik.http.routers.traefik.middlewares=strip-traefik-prefix"
       - "traefik.http.middlewares.strip-traefik-prefix.stripprefix.prefixes=/traefik"
 # Shared network for all services
 networks:
